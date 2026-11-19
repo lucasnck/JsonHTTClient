@@ -30,3 +30,9 @@ export {preparePKCEAuthorization,validateOAuthRedirectUri} from '../../core/src/
 export type {PKCEAuthorization} from '../../core/src/oauth/pkce.js';
 export {exchangeAuthorizationCode,OAuthTokenError} from '../../runtime-node/src/oauth/token-exchange.js';
 export type {OAuthCredential,OAuthCredentialVault,OAuthAuthorizationHost} from '../../runtime-node/src/oauth/token-exchange.js';
+
+export {prepareRequestWithOAuth} from './oauth-request.js';
+export type {OAuthTokenProvider,OAuthTokenRequest,PreparedRequest} from './oauth-request.js';
+export {oauthVaultKey,createOAuthVaultTokenProvider,OAuthSessionError} from '../../runtime-node/src/oauth/session-resolver.js';
+export {connectOAuthSession} from '../../runtime-node/src/oauth/connect.js';
+export type {ConnectOAuthOptions} from '../../runtime-node/src/oauth/connect.js';

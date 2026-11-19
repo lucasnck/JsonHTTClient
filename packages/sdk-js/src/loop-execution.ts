@@ -1,6 +1,7 @@
-import type {ExecutionBatchResult, ExecutionResult, HttpRequestDefinition, LoopDefinition, RequestFile} from '../../core/src/contracts/types.js';
+import type {ExecutionBatchResult, ExecutionResult, LoopDefinition, RequestFile} from '../../core/src/contracts/types.js';
 import {validateRequestFile} from '../../core/src/contracts/validation.js';
-import {interpolateRequest} from '../../core/src/templates/interpolation.js';
+import {prepareRequestWithOAuth} from './oauth-request.js';
+import type {PreparedRequest} from './oauth-request.js';
 import {approveProtectedExecution,checkHttpTarget} from '../../core/src/security/policies.js';
 import {fetchHttpRequest, ExecutionSession, HttpExecutionError} from '../../runtime-node/src/http/fetch-transport.js';
 import {readLoopItems} from '../../runtime-node/src/execution/loop-data.js';
@@ -46,19 +47,19 @@ export async function executeLoop(file:RequestFile,options:LoopOptions):Promise<
   const items=await readDataset(file.loop,options);
   const total=items.length;
   // Important: preflight every item before the first I/O or approval; a failed item doesn't produce side-effects.
-  const plans:Array<{request:HttpRequestDefinition;protectedFiles:readonly string[]}>=[];
+  const plans:Array<{prepared:PreparedRequest;protectedFiles:readonly string[]}>=[];
   for(const locals of items){
-    const {request,resolution}=interpolateRequest(file.request,options.snapshot,{
+    const prepared=prepareRequestWithOAuth(file.request,options.snapshot,{
       ...options.template,
       locals:{...options.template?.locals,...locals},
-    });
-    checkHttpTarget(request.url,options.policy);
-    plans.push({request,protectedFiles:resolution.usedProtectedFiles});
+    },options.oauthTokenProvider,options.signal);
+    checkHttpTarget(prepared.preflight.url,options.policy);
+    plans.push({prepared,protectedFiles:prepared.resolution.usedProtectedFiles});
   }
   const protectedFiles=[...new Set(plans.flatMap(plan=>[...plan.protectedFiles]))];
   if(protectedFiles.length){
-    const destinations=[...new Set(plans.map(plan=>new URL(plan.request.url).origin))];
-    const target=plans[0]!.request;
+    const destinations=[...new Set(plans.map(plan=>new URL(plan.prepared.preflight.url).origin))];
+    const target=plans[0]!.prepared.preflight;
     await approveProtectedExecution(protectedFiles,{method:target.method,url:target.url,count:total,destinations},options.approval);
   }
   const results: ExecutionResult[]=[];
@@ -73,7 +74,9 @@ export async function executeLoop(file:RequestFile,options:LoopOptions):Promise<
     emit(options.onProgress,{type:'iteration_started',ordinal,total});
     let session:ExecutionSession;
     try{
-      session=await fetchHttpRequest(plan.request,{
+      const actual=await plan.prepared.materialize();
+      checkHttpTarget(actual.url,options.policy);
+      session=await fetchHttpRequest(actual,{
         ...(options.policy===undefined?{}:{policy:options.policy}),
         ...(options.signal===undefined?{}:{signal:options.signal}),
         ...(file.options?.timeoutMs===undefined?{}:{timeoutMs:file.options.timeoutMs}),
@@ -85,7 +88,8 @@ export async function executeLoop(file:RequestFile,options:LoopOptions):Promise<
       // An unsupported body/response limit is a transport error, not an invented HTTP response.
       const code=error instanceof HttpExecutionError ? error.code : 'NETWORK_ERROR';
       diagnostics.push({ordinal,code,message:'Erro de transporte durante loop'});
-      session=new ExecutionSession({request:{method:plan.request.method,url:plan.request.url,headers:plan.request.headers??[],...(plan.request.body===undefined?{}:{body:plan.request.body})},response:null,timings:{totalMs:0}});
+      const fallback=plan.prepared.preflight;
+      session=new ExecutionSession({request:{method:fallback.method,url:fallback.url,headers:fallback.headers??[],...(fallback.body===undefined?{}:{body:fallback.body})},response:null,timings:{totalMs:0}});
     }
     sessions.push(session);
     results.push(session.result);

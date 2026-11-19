@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "TypeScript HTTP Engine \u2014 T01/T02/T03/T04/T05 vertical slice and CLI MVP",
+  "description": "TypeScript HTTP Engine — CLI, OAuth host adapters and MCP stdio integration (development)",
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -14,7 +14,8 @@
     "test": "npm run build && node --test dist/test/*.test.js",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "check:offline": "npm run typecheck && npm run test",
-    "cli": "npm run build && node dist/apps/cli/src/main.js"
+    "cli": "npm run build && node dist/apps/cli/src/main.js",
+    "mcp": "npm run build && node dist/apps/mcp-server/src/main.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -30,6 +31,7 @@
   },
   "packageManager": "npm@10.9.2",
   "bin": {
-    "json-http": "./dist/apps/cli/src/main.js"
+    "json-http": "./dist/apps/cli/src/main.js",
+    "json-http-mcp": "./dist/apps/mcp-server/src/main.js"
   }
 }

@@ -118,3 +118,10 @@ No ambiente de desenvolvimento desta entrega, `npm run check:offline` validou Ty
 - **F02-F10:** F02 parcial; servidores MCP, VS Code, Tauri e interfaces visuais de OAuth/Import continuam pendentes.
 
 Referências: [PLAN e catálogo](https://docs.google.com/document/d/1D2mh30rbWwcS0c-XTFmYsfjQO7cyRxDsnTcTEkFdWMQ/edit), [ADR-001](https://docs.google.com/document/d/1ZOyoBgnItyS_QQGgtaClwJwiPq7czJAmYSEnwpofGDc/edit), [AGENTS](https://docs.google.com/document/d/1EbeQcW6rNCbxq4_UgCiP6E-4UC9607Bz9Q2VfgO-EJA/edit).
+
+
+## Incremento T06/F03 — OAuth injetado e MCP local
+
+A execução HTTP agora aceita um `OAuthTokenProvider` assíncrono fornecido pelo host. O motor verifica destino/protected antes de consultar credenciais; objetos `OAuthToken` podem estar em qualquer arquivo de variáveis, com precedência D35. A função `connectOAuthSession` prepara PKCE, delega navegador/callback ao host e guarda tokens exclusivamente em vault injetado. Não há login autônomo nem secret store de CLI/desktop ainda. Veja [docs/OAUTH-HOST.md](docs/OAUTH-HOST.md).
+
+Servidor MCP **experimental** em `apps/mcp-server`: `npm run build && node dist/apps/mcp-server/src/main.js --root /pasta`. Também disponível em `node dist/apps/cli/src/main.js mcp serve --root /pasta`. Somente leitura por padrão; flags de permissões são definidas pelo host no startup. Consulte [docs/MCP-SETUP.md](docs/MCP-SETUP.md) antes de ativar execução ou escrita. Ainda não foi validado com SDK MCP oficial/hosts externos.

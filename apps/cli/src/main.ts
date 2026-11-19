@@ -27,7 +27,7 @@ function parseArgs(args:string[]):CliArguments {
       const value=args[++i];if(!value)throw new Error(`Falta valor para ${arg}`);
       values.set(arg,value);
     }else if(arg.startsWith('--')){
-      if(!['--allow-http','--allow-private-network','--allow-protected','--show-sensitive','--help','--save','--overwrite','--apply','--dry-run'].includes(arg))throw new Error(`Flag desconhecida: ${arg}`);
+      if(!['--allow-http','--allow-private-network','--allow-protected','--show-sensitive','--help','--save','--overwrite','--apply','--dry-run','--allow-run','--allow-write','--allow-oauth-discovery'].includes(arg))throw new Error(`Flag desconhecida: ${arg}`);
       flags.add(arg);
     }else positional.push(arg);
   }
@@ -42,6 +42,7 @@ const help=`json-http — HTTP Engine (CLI MVP)
   json-http oauth discover https://issuer.example --root . [--save --file ./dev.variables.json --name OAuthToken --client-id client --scopes read,write]
   json-http oauth save --issuer https://issuer.example --file ./dev.variables.json --name OAuthToken --client-id client --root .
   json-http import curl|bash|openapi --file ./input.txt --root . [--apply --output-dir ./folder]
+  json-http mcp serve --root . [--allow-run] [--allow-write] [--allow-protected] [--allow-oauth-discovery]
   json-http --help
 
 O Core é compartilhado; OAuth login/PKCE e OpenAPI YAML ainda não estão disponíveis.
@@ -172,6 +173,11 @@ export async function cliMain(argv:string[]):Promise<number>{
   const args=parseArgs(argv);
   if(args.flags.has('--help') || args.positional.length===0){process.stdout.write(help);return 0;}
   const [action,...rest]=args.positional;
+  if(action==='mcp'&&rest[0]==='serve'&&rest.length===1){
+    const {startMcpFromCli}=await import('../../mcp-server/src/server.js');
+    const mcpArgs:string[]=['--root',args.values.get('--root')??'.',...args.flags];
+    await startMcpFromCli(mcpArgs);return 0;
+  }
   if(action==='run' && rest.length===1)return run(rest[0]!,args);
   if(action==='list'&&rest.length===1)return list(rest[0]!);
   if(action==='oauth'&&rest[0]==='discover'&&rest.length===2)return oauthCommand('discover',args,rest[1]);
