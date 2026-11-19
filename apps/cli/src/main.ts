@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 import {readFile,readdir,lstat,realpath} from 'node:fs/promises';
+import {importCurl} from '../../../packages/importers/src/curl.js';
+import {importOpenApi} from '../../../packages/importers/src/openapi.js';
+import {applyImportPlan} from '../../../packages/runtime-node/src/importers/apply.js';
+import {discoverOAuthIssuer} from '../../../packages/runtime-node/src/oauth/discovery.js';
+import {saveOAuthVariable} from '../../../packages/runtime-node/src/oauth/variable-writer.js';
+import {createOAuthDefinition} from '../../../packages/core/src/oauth/discovery.js';
+import {setVariableFileEnabled} from '../../../packages/runtime-node/src/variable-files.js';
 import {basename,dirname,relative,resolve,sep,isAbsolute} from 'node:path';
 import {loadVariableSnapshot} from '../../../packages/runtime-node/src/variable-files.js';
 import {executeRequestFile} from '../../../packages/sdk-js/src/execution.js';
@@ -16,11 +23,11 @@ function parseArgs(args:string[]):CliArguments {
   const values=new Map<string,string>();
   for(let i=0;i<args.length;i++){
     const arg=args[i]!;
-    if(['--root','--name'].includes(arg)){
+    if(['--root','--name','--file','--output-dir','--client-id','--issuer','--scopes'].includes(arg)){
       const value=args[++i];if(!value)throw new Error(`Falta valor para ${arg}`);
       values.set(arg,value);
     }else if(arg.startsWith('--')){
-      if(!['--allow-http','--allow-private-network','--allow-protected','--show-sensitive','--help'].includes(arg))throw new Error(`Flag desconhecida: ${arg}`);
+      if(!['--allow-http','--allow-private-network','--allow-protected','--show-sensitive','--help','--save','--overwrite','--apply','--dry-run'].includes(arg))throw new Error(`Flag desconhecida: ${arg}`);
       flags.add(arg);
     }else positional.push(arg);
   }
@@ -30,9 +37,14 @@ const help=`json-http — HTTP Engine (CLI MVP)
   json-http run ./file.request.json --root . [--allow-http] [--allow-private-network] [--allow-protected] [--show-sensitive]
   json-http list ./folder
   json-http variables explain ./file.request.json --root . --name baseUrl
+  json-http variables activate ./dev.variables.json --root .
+  json-http variables deactivate ./dev.variables.json --root .
+  json-http oauth discover https://issuer.example --root . [--save --file ./dev.variables.json --name OAuthToken --client-id client --scopes read,write]
+  json-http oauth save --issuer https://issuer.example --file ./dev.variables.json --name OAuthToken --client-id client --root .
+  json-http import curl|bash|openapi --file ./input.txt --root . [--apply --output-dir ./folder]
   json-http --help
 
-O Core é compartilhado; esta CLI inicial não oferece ainda run-dir, OAuth login ou importadores.
+O Core é compartilhado; OAuth login/PKCE e OpenAPI YAML ainda não estão disponíveis.
 `;
 function assertInside(root:string,path:string){
   const rel=relative(root,path);
@@ -112,12 +124,60 @@ async function explain(requestPath:string,name:string,rootArg:string):Promise<nu
   process.stdout.write(JSON.stringify(hover,null,2)+'\n');
   return 0;
 }
+async function oauthCommand(action:string,args:CliArguments,issuerPos?:string):Promise<number>{
+  if(action!=='discover'&&action!=='save')throw new Error('Operação OAuth desconhecida');
+  const issuer=action==='discover'?issuerPos:args.values.get('--issuer');
+  if(!issuer)throw new Error('OAuth issuer obrigatório');
+  const plan=action==='discover'?await discoverOAuthIssuer(issuer):undefined;
+  if(action==='discover'&&!args.flags.has('--save')){
+    process.stdout.write(JSON.stringify(plan,null,2)+'\n');return 0;
+  }
+  const dest=args.values.get('--file'),name=args.values.get('--name'),clientId=args.values.get('--client-id');
+  if(!dest||!name||!clientId)throw new Error('OAuth save exige --file, --name e --client-id');
+  const root=await realpath(resolve(args.values.get('--root')??'.'));
+  const definition=createOAuthDefinition({issuer:plan?.issuer??issuer},{clientId,scopes:args.values.get('--scopes')?.split(',').filter(Boolean)??[]});
+  const saved=await saveOAuthVariable(definition,{targetFile:dest,variableName:name,authorizedRoot:root,overwrite:args.flags.has('--overwrite')});
+  process.stdout.write(JSON.stringify({configurationSaved:true,...saved},null,2)+'\n');
+  return 0;
+}
+async function importCommand(format:string,args:CliArguments,inline?:string):Promise<number>{
+  if(format!=='curl'&&format!=='bash'&&format!=='openapi')throw new Error('Formato de importação não suportado');
+  const root=await realpath(resolve(args.values.get('--root')??'.'));
+  const file=args.values.get('--file');
+  if(!file&&!inline)throw new Error('Fornecer texto de importação ou --file');
+  let source=inline;
+  if(file){
+    const path=resolve(file);assertInside(root,path);
+    const stat=await lstat(path);
+    if(!stat.isFile()||stat.isSymbolicLink())throw new Error('Arquivo de importação inválido');
+    assertInside(root,await realpath(path));
+    source=await readFile(path,'utf8');
+  }
+  const plan=format==='openapi'?importOpenApi(source!):importCurl(source!,format);
+  if(args.flags.has('--apply')){
+    const output=args.values.get('--output-dir');
+    if(!output)throw new Error('--apply exige --output-dir');
+    const files=await applyImportPlan(plan,output,root);
+    process.stdout.write(JSON.stringify({files,warnings:plan.warnings},null,2)+'\n');
+  }else process.stdout.write(JSON.stringify(plan,null,2)+'\n');
+  return 0;
+}
+async function variableAction(action:string,file:string,args:CliArguments):Promise<number>{
+  const root=await realpath(resolve(args.values.get('--root')??'.'));
+  const result=await setVariableFileEnabled(resolve(file),action==='activate',root);
+  process.stdout.write(JSON.stringify(result,null,2)+'\n');
+  return 0;
+}
 export async function cliMain(argv:string[]):Promise<number>{
   const args=parseArgs(argv);
   if(args.flags.has('--help') || args.positional.length===0){process.stdout.write(help);return 0;}
   const [action,...rest]=args.positional;
   if(action==='run' && rest.length===1)return run(rest[0]!,args);
   if(action==='list'&&rest.length===1)return list(rest[0]!);
+  if(action==='oauth'&&rest[0]==='discover'&&rest.length===2)return oauthCommand('discover',args,rest[1]);
+  if(action==='oauth'&&rest[0]==='save'&&rest.length===1)return oauthCommand('save',args);
+  if(action==='import'&&rest.length>=1&&rest.length<=2)return importCommand(rest[0]!,args,rest[1]);
+  if(action==='variables'&&['activate','deactivate'].includes(rest[0]??'')&&rest.length===2)return variableAction(rest[0]!,rest[1]!,args);
   if(action==='variables'&&rest[0]==='explain'&&rest.length===2 && args.values.get('--name')){
     return explain(rest[1]!,args.values.get('--name')!,args.values.get('--root')??'.');
   }
