@@ -1,0 +1,103 @@
+{
+  "name": "json-http-client",
+  "displayName": "JSON HTTP Client",
+  "description": "Run JSON HTTP requests with native VS Code editors and Explorer commands",
+  "version": "0.0.1",
+  "publisher": "lucasnck",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:json"
+  ],
+  "main": "./dist/apps/vscode/src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "jsonHttp.run",
+        "title": "Run HTTP Request",
+        "icon": "$(play)"
+      },
+      {
+        "command": "jsonHttp.stop",
+        "title": "Stop HTTP Request",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "jsonHttp.activateVariables",
+        "title": "Activate Variables File"
+      },
+      {
+        "command": "jsonHttp.deactivateVariables",
+        "title": "Deactivate Variables File"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "jsonHttp.run",
+          "when": "resourceFilename =~ /\\.request\\.json$/ && !jsonHttp.running",
+          "group": "navigation@1"
+        },
+        {
+          "command": "jsonHttp.stop",
+          "when": "jsonHttp.running",
+          "group": "navigation@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "jsonHttp.run",
+          "when": "resourceFilename =~ /\\.request\\.json$/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "jsonHttp.activateVariables",
+          "when": "resourceFilename =~ /(?:^variables|\\.variables)\\.json$/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "jsonHttp.deactivateVariables",
+          "when": "resourceFilename =~ /(?:^variables|\\.variables)\\.json$/",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": "*.request.json",
+        "url": "./contracts/request-file.schema.json"
+      },
+      {
+        "fileMatch": [
+          "variables.json",
+          "*.variables.json"
+        ],
+        "url": "./contracts/variables-file.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "JSON HTTP Client",
+      "properties": {
+        "jsonHttp.allowHttp": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "description": "Allow explicit HTTP (without TLS) for trusted local development only. HTTPS remains the default."
+        },
+        "jsonHttp.allowPrivateNetworks": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "description": "Allow localhost/private network targets in a trusted local workspace. Not recommended for untrusted workspaces."
+        }
+      }
+    }
+  }
+}

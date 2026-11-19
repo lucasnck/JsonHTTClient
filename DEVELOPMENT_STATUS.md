@@ -67,3 +67,14 @@ Riscos e pendências: DNS pinning/SSRF robusto não concluído; arquivos binári
 - Riscos: MCP testado com protocolo local, ainda SEM teste via SDK/Inspector oficial ou clientes externos. DNS pinning e proteção SSRF de runtime Node/OAuth continuam parciais; não expor em redes não confiáveis ou declarar pronto para produção. MCP `request_run_dir`/`import_apply`/OAuth connect no host e VS Code/Desktop continuam PENDING. Não marcar T06/T09/F03/T10 como DONE sem esses critérios. Validação funcional do usuário reservada para o fim.
 
 Documentação adicional: `docs/MCP-SETUP.md` e `docs/OAUTH-HOST.md`.
+
+## Incremento — F04/F05 extensão VS Code, Git remoto configurado (2026-11-19)
+
+- O remoto local **origin** aponta para `https://github.com/lucasnck/JsonHTTClient.git`, branch **main**; NÃO executar push conforme solicitação do usuário. O repositório remoto está vazio; referências de rastreamento locais antigas foram removidas, sem alterar remoto. Usuário publicará quando quiser (`git push -u origin main`).
+- `apps/vscode/src/runner.ts`: Run de buffer JSON ainda não salvo, contrato T01, resolução D35, preflight de protected, HTTP/loop via SDK existente e resultado JSON canônico (sem duplicar motor).
+- `apps/vscode/src/extension.ts`: comandos nativos Run/Stop, editor untitled JSON com Save As normal, progresso, cancelamento, modal de protected, hover/completion de variáveis, diagnostics, Explorer FileDecoration por HTTP method e enabled/protected, context menus de Activate/Deactivate usando T02. Configurações de máquina para HTTP privado/sem TLS apenas opt-in, workspace local confiável obrigatório.
+- `apps/vscode/package.json`: VS Code contribution de comandos, editor/title, explorer/context e mapeamento de JSON schemas para os dois formatos de arquivo. O build inclui as declarações de API simplificadas em `vscode-shim.d.ts` porque `@types/vscode` ainda não está instalado; MUST substituir pelos tipos oficiais antes de publicar.
+- `tooling/package-vsix.mjs` é empacotador ZIP/VSIX sem bibliotecas npm externas; `npm run vscode:pack` gera `artifacts/json-http-client-0.0.1.vsix` com Core/SDK/runtime Node necessários, sem CLI global. Validado com zipfile.testzip() e assets do manifest presentes, **mas não instalado no VS Code real**.
+- Testes `test/vscode-runner.test.ts`, `test/vscode-manifest.test.ts`: request de buffer não salvo, Request/Response JSON, masked Authorization, protected deny antes da rede, foreach cancelado, arquivos fora da raiz, menus/schemas. Total: **115/115 testes Node PASS**, typecheck/build PASS, pacote VSIX CRC PASS.
+- `npm run check` completo BLOQUEADO em `prettier: not found` (dependências npm indisponíveis); não alegar lint/format/CI PASS.
+- Status F04/F05/T08/T10/T11 = PENDING: não houve VS Code Extension Host smoke, OAuth host, validação oficial `@types/vscode`, VSIX install ou Marketplace; Desktop e npm/CDN também pendentes.

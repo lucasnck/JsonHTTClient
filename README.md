@@ -1,6 +1,6 @@
 # JsonHttpEngineWorkspace — TypeScript HTTP Engine
 
-Implementação incremental do motor HTTP declarativo especificado em Google Drive. O código-fonte do motor é compartilhado entre os clientes e terá distribuição npm/CDN e bundles independentes, conforme a ADR-001. **Não há publicação npm, CDN, VSIX, MCP server ou Desktop instalável nesta entrega.**
+Implementação incremental do motor HTTP declarativo especificado em Google Drive. O código-fonte do motor é compartilhado entre os clientes e terá distribuição npm/CDN e bundles independentes, conforme a ADR-001. **Não há publicação npm/CDN nem Desktop instalável.** Um VSIX experimental da extensão VS Code pode ser gerado localmente; ainda não foi testado no Extension Host real. O servidor MCP continua experimental.
 
 ## Implementado no código
 
@@ -15,6 +15,7 @@ Implementação incremental do motor HTTP declarativo especificado em Google Dri
 - **T09 (parcial):** checagem de esquema/hosts e endereços locais, aprovação explícita de variáveis protegidas, controle básico de destinos HTTP. **Não é SSRF-hardening completo** (DNS pinning, acesso cross-process, races e outras políticas pendentes).
 - **F01 (parcial):** CLI inicial `run`, `list`, `variables explain`, suporte a loop/Stop via signal, JSON canônico em stdout e progresso/diagnósticos em stderr. `run-dir` e recursos avançados ainda não estão implementados.
 - **T08 (parcial):** entrada browser-safe pura (`packages/sdk-js/src/index.browser.ts`) sem APIs Node; adaptador HTTP browser/CDN bundle/npm publish ainda não feitos.
+- **F04/F05 (parciais):** extensão VS Code desktop com Run/Stop em menus nativos, Response JSON em aba untitled editável, integração ao mesmo SDK, hover/completion de placeholders, decorações de método e variáveis no Explorer, schemas de request/variables e toggle dos arquivos ativos. `npm run vscode:pack` produz VSIX experimental sem CLI; sem teste real do Extension Host e tipos oficiais VS Code ainda indisponíveis.
 - **T11 (parcial):** TypeScript estrito, ESLint 9 flat config, Prettier, EditorConfig e comandos de qualidade configurados. Ainda é necessário instalar/rodar os plugins ESLint e Prettier reais e gerar lockfile.
 
 ## Exemplo de uso da CLI (Node.js 22+)
@@ -115,7 +116,7 @@ No ambiente de desenvolvimento desta entrega, `npm run check:offline` validou Ty
 - **T07:** OpenAPI YAML não disponível sem parser robusto; imports só interpretam comandos cURL literais, sem executar scripts.
 - **T08:** distribuição npm/CDN, runtime-browser, bundles por cliente e matriz de plataformas ainda não criados.
 - **T11/T10:** faltam instalações reais de ESLint e Prettier, lockfile `npm ci`, gates CI de release.
-- **F02-F10:** F02 parcial; servidores MCP, VS Code, Tauri e interfaces visuais de OAuth/Import continuam pendentes.
+- **F02-F10:** F02, F03, F04 e F05 parciais; servidor MCP/VS Code e integrações Tauri/OAuth/Import visual ainda não concluídos nem validados oficialmente.
 
 Referências: [PLAN e catálogo](https://docs.google.com/document/d/1D2mh30rbWwcS0c-XTFmYsfjQO7cyRxDsnTcTEkFdWMQ/edit), [ADR-001](https://docs.google.com/document/d/1ZOyoBgnItyS_QQGgtaClwJwiPq7czJAmYSEnwpofGDc/edit), [AGENTS](https://docs.google.com/document/d/1EbeQcW6rNCbxq4_UgCiP6E-4UC9607Bz9Q2VfgO-EJA/edit).
 
@@ -125,3 +126,14 @@ Referências: [PLAN e catálogo](https://docs.google.com/document/d/1D2mh30rbWwc
 A execução HTTP agora aceita um `OAuthTokenProvider` assíncrono fornecido pelo host. O motor verifica destino/protected antes de consultar credenciais; objetos `OAuthToken` podem estar em qualquer arquivo de variáveis, com precedência D35. A função `connectOAuthSession` prepara PKCE, delega navegador/callback ao host e guarda tokens exclusivamente em vault injetado. Não há login autônomo nem secret store de CLI/desktop ainda. Veja [docs/OAUTH-HOST.md](docs/OAUTH-HOST.md).
 
 Servidor MCP **experimental** em `apps/mcp-server`: `npm run build && node dist/apps/mcp-server/src/main.js --root /pasta`. Também disponível em `node dist/apps/cli/src/main.js mcp serve --root /pasta`. Somente leitura por padrão; flags de permissões são definidas pelo host no startup. Consulte [docs/MCP-SETUP.md](docs/MCP-SETUP.md) antes de ativar execução ou escrita. Ainda não foi validado com SDK MCP oficial/hosts externos.
+
+## Extensão VS Code experimental (F04/F05)
+
+```bash
+npm run vscode:pack
+# gera artifacts/json-http-client-0.0.1.vsix
+```
+
+Instalar pela opção **Install from VSIX** do VS Code desktop. Não precisa instalar CLI ou daemon global. A extensão usa somente workspaces locais confiáveis; os comandos Run/Stop são nativos, cada execução abre Response JSON editável, e as variáveis usam o mesmo resolvedor do motor. HTTP sem TLS e redes privadas são bloqueados por padrão; ajustes explícitos da máquina `jsonHttp.allowHttp` / `jsonHttp.allowPrivateNetworks` existem para uso local confiável.
+
+**Limitações:** o VSIX foi verificado estruturalmente como ZIP, não instalado no VS Code. `vscode-shim.d.ts` é temporário até disponibilidade dos tipos oficiais; Run/Stop foi testado pelo runner independente do VS Code com servidor HTTP local, não por teste de UI real. OAuth interactivo e restauração de sessões além do comportamento nativo do editor não estão completos. Consulte [apps/vscode/README.md](apps/vscode/README.md).
