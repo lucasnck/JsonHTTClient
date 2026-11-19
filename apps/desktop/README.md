@@ -1,38 +1,35 @@
-# Desktop F06 — foundation (not yet a Tauri installer)
+# Desktop F06 — Tauri 2 + React/Monaco development scaffold
 
-This directory contains the **testable, host-independent desktop session controller**. The
-Tauri 2 + React/Monaco UI and signed installers remain **PENDING**. Do not call this
-an installed desktop application or use it for privileged untrusted workspaces.
+**Status: partial implementation, NOT an installable desktop release.**
 
-## Shared pieces
+This app is designed to keep the single TypeScript HTTP engine from ADR-001.
+- `src/tab-sessions.ts`: tabs, Run/Stop, edited Response Save As and restoration.
+- `src/node-session-store.ts`: app-data-only session snapshots; only engine-generated masked headers are persisted. Unsaved edits are never written to session storage, and HTTP bodies may contain secrets.
+- `src/sidecar-protocol.ts`: restricted JSON-line commands for listing requests, running, stopping, variable activation, import preview and optional Apply. All operations enforce workspace root.
+- `src/sidecar.ts`: persistent Node process with stdin/stdout transport, no opened TCP port.
+- `ui/`: React, Monaco, Vite application with Explorer, request and response tabs, Run/Stop, JSON editor, import preview.
+- `src-tauri/`: Rust host picks a directory using an OS-native dialog and starts the sidecar for that directory. The webview cannot execute Node or arbitrary shell commands.
 
-- `src/tab-sessions.ts`: request/response tab state, Run/Stop, edit/Save As,
-  active tab and restoration. Never re-executes HTTP on restoration.
-- `src/node-bridge.ts`: development adapter for authorized root filesystem and
-  the **shared** `packages/runtime-node/src/editor-execution.ts` engine. Does
-  not install a daemon, require a separate CLI, or implement HTTP itself.
-- `src/node-session-store.ts`: atomic per-session JSON metadata/snapshots in a
-  host-selected app-data directory (not in the workspace), files mode 0600.
+## Development dependencies
 
-On purpose, edited unsaved request/response buffers are **not** persisted.
-Open Response tabs restore only their last **engine-produced** response JSON,
-with known sensitive HTTP headers masked. The engine does not automatically
-redact HTTP response bodies: these may contain confidential application data.
-An eventual desktop release should let the host opt out of snapshots or use
-protected encrypted storage. OAuth credentials must reside in the OS secure
-store; session metadata is NEVER a token vault.
+Requires Node.js >=22, Rust toolchain, Cargo/Tauri 2 toolchain, platform SDK/GTK/WebKit and npm access. These are **not available** in the current sandbox, so only the Node sidecar and pure SDK can be tested here.
 
-The future Tauri host should implement a narrow IPC bridge for: open folder,
-read request, Run/Stop, save via explicit file picker, protected approval,
-secret store, and session persistence in `app_data_dir`. No arbitrary Node APIs
-should be exposed to the webview, and network requests must be executed by a
-privileged host adapter with the same HTTP security policy as the CLI.
+```bash
+# Project root; install packages for core and frontend
+npm install
+npm --prefix apps/desktop/ui install
+npm --prefix apps/desktop install
+npm run build
+npm run desktop:tauri:dev
+```
 
-## Current validation
+`npm run desktop:bundle:check` intentionally fails until a platform-specific Node runtime is staged in `apps/desktop/src-tauri/resources/runtime/` and the UI has been built. Release must embed this runtime rather than depend on system Node; do NOT override that check by ignoring failures. Rust must be compiled and smoke-tested on each supported OS.
 
-`npm run check:offline` executes `test/desktop-sessions.test.ts`, including a
-local HTTP fixture, masked Authorization header, edited Response Save As, no
-re-run on restore, closed-tab removal, abort and symlink confinement.
+## Security / limitations
 
-Still missing: Tauri/Rust manifest and host commands; React + Monaco integration;
-installation, smoke UI tests, OS keychain, remote/browser capability tests.
+- The Rust native dialog selects the trusted workspace; sidecar FS operations remain within the selected root. Session snapshots are stored separately under native app-data, not the project tree.
+- Tauri `desktop_send` only accepts a small operation allowlist. The sidecar uses the same SDK security preflight as the CLI, never duplicates HTTP handling, and does not allow a frontend-provided `approval:true` flag to bypass `protected`.
+- Import Apply requires `--allow-import-apply` supplied **at sidecar start by the native host**, not by an agent or request; the current native host does not grant it, so the preview works but Apply will be denied. File overwrite is always blocked.
+- OAuth token storage, native protected dialog/approval, remote VSC host, signed desktop installers, native smoke tests and DNS/socket pinning are still pending.
+- The current Save As is confined to the selected workspace; a future explicit native save-grant can allow an external path without granting general write access.
+- This scaffold does not claim that Tauri was compiled or that npm dependencies are installed.

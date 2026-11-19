@@ -166,3 +166,31 @@ local ou bypass de CORS. `npm run browser:pack` cria um grafo de módulos ESM
 estático em `artifacts/browser-esm`, importável localmente e pronto para ser
 hospedado futuramente sob um endereço CDN versionado. **Ainda não foi publicado.**
 Documentação: [docs/BROWSER-RUNTIME.md](docs/BROWSER-RUNTIME.md).
+
+## Desktop Tauri 2 — desenvolvimento parcial (F06)
+
+O aplicativo agora possui fontes de **React/Monaco**, um host **Tauri/Rust** e um
+**sidecar Node por stdin/stdout** que chama o mesmo SDK do motor. Consulte
+[`apps/desktop/README.md`](apps/desktop/README.md) para pré-requisitos, riscos,
+comandos e limites. Nenhum daemon global é necessário.
+
+```bash
+# Exige Node, Rust/Cargo, toolchains nativas e acesso npm:
+npm install
+npm --prefix apps/desktop/ui install
+npm --prefix apps/desktop install
+npm run build
+npm run desktop:tauri:dev
+```
+
+`npm run desktop:bundle:check` **deve falhar** enquanto não houver UI compilada
+e runtime Node da plataforma empacotado; não publicar instalador incompleto.
+O frontend nunca carrega Monaco por CDN. A autorização de imports escritos e
+variáveis protected permanece desativada no host Tauri até haver confirmação
+nativa segura. A resposta pode ter corpo sensível, e Save As atualmente só
+aceita caminho sob o workspace.
+
+A suíte TypeScript/Node desta etapa passou **138/138 testes**; o frontend
+React/Vite e o binário Rust **não foram compilados**, pois não há dependências
+npm nem toolchain Rust disponível neste ambiente (`EAI_AGAIN` no npm). As specs
+F06, T08, T10 e F09 permanecem `PENDING` até build/instalação/testes reais.
