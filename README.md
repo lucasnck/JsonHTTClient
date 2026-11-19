@@ -194,3 +194,32 @@ A suíte TypeScript/Node desta etapa passou **138/138 testes**; o frontend
 React/Vite e o binário Rust **não foram compilados**, pois não há dependências
 npm nem toolchain Rust disponível neste ambiente (`EAI_AGAIN` no npm). As specs
 F06, T08, T10 e F09 permanecem `PENDING` até build/instalação/testes reais.
+
+## Desktop setup e instalador (Windows / macOS / Linux)
+
+A preparação do desktop é automatizada e verifica se cada dependência já existe antes
+de instalar. **Instalações de ferramentas do sistema operacional são opt-in.**
+
+```bash
+# Para diagnosticar sem instalar:
+npm run desktop:doctor
+
+# Na primeira configuração macOS ou Debian/Ubuntu:
+bash scripts/bootstrap-desktop.sh --install-system --install-npm
+
+# Após preparar a máquina:
+npm run desktop:setup   # npm raiz, Vite/Monaco e CLI Tauri; ignora pacotes já prontos
+npm run desktop:dev     # engine TS + Vite + Tauri dev
+npm run desktop:build   # engine TS + UI build + Node local embutido + gate + Tauri build
+
+# Apenas simular as etapas:
+node tooling/desktop-workflow.mjs build --dry-run
+```
+
+No Windows, a preparação inicial usa `scripts/bootstrap-desktop.ps1 -InstallSystem -InstallNpm`
+e instala via winget, se ausentes, Node LTS, Rustup, Build Tools C++ e WebView2.
+A documentação completa e os requisitos de cada plataforma ficam em
+[apps/desktop/README.md](apps/desktop/README.md). O compilador Rust e o SDK
+WebKitGTK são pré-requisitos para Linux; não são instalados silenciosamente.
+Um instalador Tauri só será produzido quando o runtime Node **da plataforma de
+build** estiver empacotado e tiver passado no gate `desktop:bundle:check`.

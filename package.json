@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "TypeScript HTTP Engine \u2014 CLI, OAuth host adapters and MCP stdio integration (development)",
+  "description": "TypeScript HTTP Engine — CLI, OAuth host adapters and MCP stdio integration (development)",
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,10 +21,14 @@
     "desktop:sidecar": "npm run build && node dist/apps/desktop/src/sidecar.js",
     "desktop:ui:dev": "npm --prefix apps/desktop/ui run dev",
     "desktop:ui:build": "npm --prefix apps/desktop/ui run build",
-    "desktop:dev": "npm run build && npm --prefix apps/desktop/ui run dev",
-    "desktop:tauri:dev": "npm run build && npm --prefix apps/desktop run dev",
+    "desktop:dev": "node tooling/desktop-workflow.mjs dev",
+    "desktop:tauri:dev": "npm run desktop:dev",
     "desktop:bundle:check": "node tooling/check-desktop-bundle.mjs",
-    "desktop:tauri:build": "npm run build && npm run desktop:bundle:check && npm --prefix apps/desktop run build"
+    "desktop:tauri:build": "npm run desktop:build",
+    "desktop:doctor": "node tooling/desktop-workflow.mjs doctor",
+    "desktop:setup": "node tooling/desktop-workflow.mjs setup",
+    "desktop:runtime:stage": "node tooling/desktop-workflow.mjs runtime",
+    "desktop:build": "node tooling/desktop-workflow.mjs build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
