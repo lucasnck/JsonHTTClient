@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.json-http-engine.local/variables-file.schema.json",
+  "title": "VariablesFile",
+  "description": "One root JSON object per variables.json or *.variables.json. Multiple enabled siblings are valid; first alphabetic definition wins per key.",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "protected": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "patternProperties": {
+    "^(?!(enabled|protected|\\$format|schemaVersion|exclusiveGroup)$).+$": {}
+  },
+  "additionalProperties": false
+}
