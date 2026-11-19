@@ -3,16 +3,29 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Initial M0 implementation for JsonHttpEngineWorkspace",
+  "description": "TypeScript HTTP Engine — M0 contracts and variable resolver",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/test/*.test.js",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "check:offline": "npm run typecheck && npm run test"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
     "typescript": "^5.8.3",
-    "@types/node": "^22.0.0"
+    "typescript-eslint": "^8.46.4"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@10.9.2"
 }

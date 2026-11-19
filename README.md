@@ -1,34 +1,51 @@
 # JsonHttpEngineWorkspace — M0 development bootstrap
 
-Initial implementation slice for **T01 (contracts)** and **T02 (variable files)** from the Google Drive roadmap. No HTTP transport, OAuth login, CLI, MCP, VS Code extension, desktop, or release installers are implemented yet.
+Initial implementation slice for **T01 (contracts)**, **T02 (variable files)** and **T11 (code-quality toolchain)** from the Google Drive roadmap. **No HTTP transport, OAuth login, CLI, MCP server, VS Code extension, desktop, npm publish or CDN release is implemented yet.**
 
-## What is implemented
+## Architecture
 
-- Public TypeScript `RequestFile`, `ExecutionResult` and `ExecutionBatchResult` types.
-- Draft 2020-12 JSON Schema documents for request, variables and response envelope.
-- Runtime validation of request filename and file structure, status/headers/timings/root result shape and loop counters.
-- A pure variable resolver and a Node adapter for `variables.json` / `*.variables.json` with nearest-folder precedence. Multiple manually enabled files are valid; names sort alphabetically (Unicode NFC, case-folded and original-name tie break), first definition of each variable wins.
-- Explicit `Activate` deactivates every same-folder sibling; `Deactivate` deactivates only selected file. File replacement is atomic per file, best-effort rollback on multi-file errors (not crash-atomic across all files).
-- Node test runner fixtures covering duplicates/dev-prod OAuth metadata, inheritance, protected provenance, activation and basic path/symlink protection.
+The engine is one TypeScript implementation shared across clients. The [approved distribution ADR](docs/architecture/adr-runtime-distribution.md) calls for client-embedded builds, npm JavaScript ESM + `.d.ts`, and a browser-safe CDN ESM build, without a mandatory global daemon. These delivery targets are *planned*, not released.
 
-## Requirements and test
+## Current code
 
-Node.js 22+; TypeScript 5.8+; `@types/node` 22+. With dependencies installed:
+- Public TypeScript request, single-result and batch-result types.
+- Draft 2020-12 JSON Schema for requests, variables and execution results.
+- Runtime validation of request filename/structure and result shape.
+- Pure variable resolver and Node filesystem adapter with nearest-folder precedence, deterministic filename ordering and effective value provenance. Multiple manually enabled variable files are allowed; Activate disables siblings.
+- Tests for dev/prod OAuth metadata, ancestry, permissions, contracts, and the T11 configuration baseline.
+- Shared TypeScript strict options, ESLint 9 flat config with type-aware TypeScript rules, Prettier, EditorConfig and suggested VS Code settings.
+
+## Requirements and commands
+
+Node.js **22+**, npm **10+**. Install dependencies when registry access is available:
 
 ```sh
 npm install
 npm run check
 ```
 
-Run tests without network (with a preinstalled TypeScript and `@types/node`): `tsc && node --test dist/test/*.test.js`.
+The quality scripts are:
 
-## Important limitations / next steps
+| Command | Purpose |
+| --- | --- |
+| `npm run format` | Format repository with Prettier. |
+| `npm run format:check` | Verify formatting without changes. |
+| `npm run lint` | ESLint flat config, type-aware rules; no warnings permitted. |
+| `npm run lint:fix` | Auto-fix eligible ESLint problems. |
+| `npm run typecheck` | Compile-check strict TypeScript without emitting files. |
+| `npm run build` | Compile TypeScript into `dist/`. |
+| `npm test` | Build, then run Node's test runner. |
+| `npm run check` | **Full gate:** Prettier, ESLint, TypeScript, tests. |
+| `npm run check:offline` | **Limited fallback** running only TypeScript and tests; not equivalent to the full gate. |
 
-1. T01: JSON Schema files and handwritten validator need a parity suite with a Draft 2020-12 validator before marking DONE. JSON Schema is not yet executed by the runtime. Body variants are authored but transport is not implemented.
-2. T02: explicit Activate modifies files safely in common cases but cannot guarantee an all-or-nothing transaction across process crashes. Improve cross-process locking/atomic recovery and add file-watcher invalidation before marking DONE.
-3. T03: interpolation, recursion/cycle checks, Language Service and tooltip pending.
-4. T08: runtime packaging ADR is **not approved**. This archive is a development bootstrap, not a chosen installer architecture.
-5. `OAuthToken` is only configuration metadata at this stage: no access/refresh token acquisition and no auth during tooltip.
-6. No GitHub remote is configured by this bootstrap. Source is delivered as an archive until a target repository is provided.
+`package-lock.json` and `npm ci` are pending a successful online dependency installation. The current sandbox cannot reach the npm registry. No ESLint or Prettier execution is claimed until they can actually be installed and run. Existing files may require `npm run format` before `format:check` succeeds.
 
-Source decisions remain in `AiWorkspace/JsonHttpEngineWorkspace` on Google Drive. All product specs remain `PENDING` until their full acceptance criteria and integration tests are completed.
+## Current limitations
+
+1. T01: handwritten runtime validator does not yet consume the JSON Schema definitions; parity suite required.
+2. T02: Activate writes atomically per file with best-effort rollback, not a cross-process/crash-safe transaction; file watchers and races pending.
+3. T11: actual ESLint/Prettier commands and npm lockfile/CI gate pending dependency installation; TypeScript and Node test gate can run with locally available compiler/node typings.
+4. T03+ and all clients still pending; `OAuthToken` is metadata only, not authentication.
+5. No remote GitHub repository has been found. Source can be restored from the supplied Git bundle and source ZIP; no push is claimed.
+
+See the Google Drive specs: [T11 — toolchain](https://docs.google.com/document/d/18yqUFX1BfEQYnDlmsdAuJOuB1TV5FPPVl5SxmtkuJzI/edit), [T08 — runtime/distribution](https://docs.google.com/document/d/1tQ2aBbyo3Z8pu-yFdDx3C-_mQrIMF75V0blgqLEyeJA/edit).

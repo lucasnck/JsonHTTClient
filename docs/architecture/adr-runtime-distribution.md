@@ -1,9 +1,12 @@
-# ADR-T08 — Execution model and distribution (PROPOSED, NOT APPROVED)
+# ADR-001 — Embedded Engine + npm + CDN (APPROVED, 2026-11-19)
 
-## Decision to make
+One TypeScript implementation of the HTTP Engine is reused by all clients. Every client bundles its own compatible compiled Core/SDK/runtime; there is **no mandatory global daemon or Core installation**. The runtime is also distributed as compiled JavaScript ESM + TypeScript declarations through npm, and a browser-safe ESM bundle through a versioned CDN. The CDN build does not grant access to Node filesystem/keychain APIs or bypass browser CORS.
 
-A. One TypeScript implementation bundled with each client (extension host, CLI, MCP, desktop sidecar).
-B. Mandatory separately installed engine process exposing local IPC.
-C. Optional shared daemon for multiple clients.
+- **VS Code desktop:** bundle SDK/runtime-node in VSIX Extension Host; no standalone CLI requirement.
+- **CLI / MCP server:** Node-based npm executables using the same SDK.
+- **Desktop Tauri:** package runtime inside the installer (sidecar/bridge implementation to validate).
+- **Browser/CDN:** use runtime-browser with explicit capabilities; no Node APIs or OS credentials.
 
-Provisional preference: A for the MVP because VS Code-only installations should require only the extension and because a local daemon adds lifecycle, authentication and version compatibility work. This is NOT an approved decision; compare OS coverage, remote VS Code, secret storage isolation, desktop sidecar and npm vs standalone CLI before committing. No daemon is implemented by this bootstrap.
+The exact npm package names, CDN URL, standalone CLI binary, VS Code remote/web support, and Tauri bridge remain implementation/release details. No SDK/CDN package has been published yet.
+
+Authoritative decision: https://docs.google.com/document/d/1ZOyoBgnItyS_QQGgtaClwJwiPq7czJAmYSEnwpofGDc/edit

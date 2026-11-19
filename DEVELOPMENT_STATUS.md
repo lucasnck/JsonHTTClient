@@ -27,3 +27,9 @@ Commit Git local: `cf60fb6` (`feat(m0): bootstrap T01 contracts and T02 variable
 1. Alocar repositório GitHub do JsonHttpEngineWorkspace para persistir e versionar o código.
 2. Encerrar T01 e T02 com os testes complementares e schemas validados por biblioteca padrão.
 3. Desenvolver T03 (template resolver) e iniciar transporte HTTP T04 somente após estruturar T09/T08 necessárias.
+
+## Atualização — T11: padronização do projeto (2026-11-19)
+- Implementação local: `.editorconfig`, `eslint.config.mjs` (flat config ESLint 9 com typescript-eslint type-aware), `prettier.config.mjs`, `.prettierignore`, `tsconfig.base.json` e `tsconfig.json` compartilhando strict flags, `.vscode/settings.json` / `extensions.json`, novos scripts npm e testes de configuração.
+- Node/TypeScript Typecheck e testes executados usando compilador e typings locais; evidências de comando devem acompanhar a entrega. Não se deve equiparar o script reduzido `check:offline` ao gate completo `npm run check`.
+- Bloqueio: sandbox não alcança o registro npm (EAI_AGAIN), não foi possível instalar ESLint, typescript-eslint, Prettier nem gerar lockfile npm; `lint`/`format:check` reais permanecem NOT_RUN. T11 status PENDING até instalação, formatação, lint e CI reproduzível.
+- ADR T08 aprovada posteriormente: Engine embutido nos clientes, npm e CDN ESM browser-safe; documento local de arquitetura corrigido.
