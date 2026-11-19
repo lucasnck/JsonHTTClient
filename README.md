@@ -1,51 +1,90 @@
-# JsonHttpEngineWorkspace — M0 development bootstrap
+# JsonHttpEngineWorkspace — TypeScript HTTP Engine
 
-Initial implementation slice for **T01 (contracts)**, **T02 (variable files)** and **T11 (code-quality toolchain)** from the Google Drive roadmap. **No HTTP transport, OAuth login, CLI, MCP server, VS Code extension, desktop, npm publish or CDN release is implemented yet.**
+Implementação incremental do motor HTTP declarativo especificado em Google Drive. O código-fonte do motor é compartilhado entre os clientes e terá distribuição npm/CDN e bundles independentes, conforme a ADR-001. **Não há publicação npm, CDN, VSIX, MCP server ou Desktop instalável nesta entrega.**
 
-## Architecture
+## Implementado no código
 
-The engine is one TypeScript implementation shared across clients. The [approved distribution ADR](docs/architecture/adr-runtime-distribution.md) calls for client-embedded builds, npm JavaScript ESM + `.d.ts`, and a browser-safe CDN ESM build, without a mandatory global daemon. These delivery targets are *planned*, not released.
+- **T01 (parcial):** tipos TypeScript de RequestFile, Response individual e batch, validação inicial e JSON Schemas Draft 2020-12.
+- **T02 (parcial):** arquivos `variables.json` e `*.variables.json`, `enabled`/`protected` por arquivo, herança física, precedência alfabética de múltiplos arquivos ativos, origem de cada variável e Activate/Deactivate.
+- **T03 (parcial):** interpolação `{{name}}` em URL, headers, query, autenticação e body; tipos JSON preservados em placeholder completo; resolução recursiva, limites, detecção de ciclo/colisão/chaves inseguras, overrides de foreach; hover/completion/diagnósticos básicos e metadata OAuth sem login.
+- **T04 (parcial):** cliente HTTP Node fetch, JSON/text/urlencoded/multipart textual, HTTP 4xx/5xx como Response real, headers de request/response normalizados, mascaramento de headers conhecidos, sessão temporária para revelar originais sem rerun, redirects revalidados e limites de timeout/tamanho.
+- **T05 (parcial):** loop sequencial inline ou dataset JSON autorizado, `onError`, AbortSignal/Stop, eventos de progresso, batch `{summary,timings,results[]}`, preflight de variáveis e autorização protected antes do primeiro HTTP.
+- **T09 (parcial):** checagem de esquema/hosts e endereços locais, aprovação explícita de variáveis protegidas, controle básico de destinos HTTP. **Não é SSRF-hardening completo** (DNS pinning, acesso cross-process, races e outras políticas pendentes).
+- **F01 (parcial):** CLI inicial `run`, `list`, `variables explain`, suporte a loop/Stop via signal, JSON canônico em stdout e progresso/diagnósticos em stderr. `run-dir` e recursos avançados ainda não estão implementados.
+- **T08 (parcial):** entrada browser-safe pura (`packages/sdk-js/src/index.browser.ts`) sem APIs Node; adaptador HTTP browser/CDN bundle/npm publish ainda não feitos.
+- **T11 (parcial):** TypeScript estrito, ESLint 9 flat config, Prettier, EditorConfig e comandos de qualidade configurados. Ainda é necessário instalar/rodar os plugins ESLint e Prettier reais e gerar lockfile.
 
-## Current code
+## Exemplo de uso da CLI (Node.js 22+)
 
-- Public TypeScript request, single-result and batch-result types.
-- Draft 2020-12 JSON Schema for requests, variables and execution results.
-- Runtime validation of request filename/structure and result shape.
-- Pure variable resolver and Node filesystem adapter with nearest-folder precedence, deterministic filename ordering and effective value provenance. Multiple manually enabled variable files are allowed; Activate disables siblings.
-- Tests for dev/prod OAuth metadata, ancestry, permissions, contracts, and the T11 configuration baseline.
-- Shared TypeScript strict options, ESLint 9 flat config with type-aware TypeScript rules, Prettier, EditorConfig and suggested VS Code settings.
+O código deve ser compilado antes de rodar:
 
-## Requirements and commands
-
-Node.js **22+**, npm **10+**. Install dependencies when registry access is available:
-
-```sh
-npm install
-npm run check
+```bash
+npm install # requer acesso ao registro npm; gera lockfile
+npm run build
+node dist/apps/cli/src/main.js --help
 ```
 
-The quality scripts are:
+Um projeto de exemplo:
 
-| Command | Purpose |
-| --- | --- |
-| `npm run format` | Format repository with Prettier. |
-| `npm run format:check` | Verify formatting without changes. |
-| `npm run lint` | ESLint flat config, type-aware rules; no warnings permitted. |
-| `npm run lint:fix` | Auto-fix eligible ESLint problems. |
-| `npm run typecheck` | Compile-check strict TypeScript without emitting files. |
-| `npm run build` | Compile TypeScript into `dist/`. |
-| `npm test` | Build, then run Node's test runner. |
-| `npm run check` | **Full gate:** Prettier, ESLint, TypeScript, tests. |
-| `npm run check:offline` | **Limited fallback** running only TypeScript and tests; not equivalent to the full gate. |
+```text
+workspace/
+  variables.json
+  customers/
+    dev.variables.json
+    prod.variables.json
+    list.request.json
+```
 
-`package-lock.json` and `npm ci` are pending a successful online dependency installation. The current sandbox cannot reach the npm registry. No ESLint or Prettier execution is claimed until they can actually be installed and run. Existing files may require `npm run format` before `format:check` succeeds.
+`customers/dev.variables.json`:
 
-## Current limitations
+```json
+{
+  "enabled": true,
+  "protected": false,
+  "baseUrl": "https://api.example.com"
+}
+```
 
-1. T01: handwritten runtime validator does not yet consume the JSON Schema definitions; parity suite required.
-2. T02: Activate writes atomically per file with best-effort rollback, not a cross-process/crash-safe transaction; file watchers and races pending.
-3. T11: actual ESLint/Prettier commands and npm lockfile/CI gate pending dependency installation; TypeScript and Node test gate can run with locally available compiler/node typings.
-4. T03+ and all clients still pending; `OAuthToken` is metadata only, not authentication.
-5. No remote GitHub repository has been found. Source can be restored from the supplied Git bundle and source ZIP; no push is claimed.
+`customers/list.request.json`:
 
-See the Google Drive specs: [T11 — toolchain](https://docs.google.com/document/d/18yqUFX1BfEQYnDlmsdAuJOuB1TV5FPPVl5SxmtkuJzI/edit), [T08 — runtime/distribution](https://docs.google.com/document/d/1tQ2aBbyo3Z8pu-yFdDx3C-_mQrIMF75V0blgqLEyeJA/edit).
+```json
+{
+  "request": {
+    "method": "GET",
+    "url": "{{baseUrl}}/customers",
+    "headers": [{"name": "Accept", "value": "application/json"}]
+  }
+}
+```
+
+```bash
+node dist/apps/cli/src/main.js run ./workspace/customers/list.request.json --root ./workspace
+node dist/apps/cli/src/main.js list ./workspace/customers
+node dist/apps/cli/src/main.js variables explain ./workspace/customers/list.request.json --root ./workspace --name baseUrl
+```
+
+HTTP não criptografado e redes privadas são **bloqueados por padrão**. Para testes explícitos com um servidor local confiável, acrescentar `--allow-http --allow-private-network`. `--allow-protected` autoriza a execução quando variáveis efetivas vierem de arquivos com `protected:true`. `--show-sensitive` é opt-in para exibir headers reais da execução na saída padrão. Não envie outputs desse modo para logs compartilhados.
+
+## Qualidade
+
+```bash
+npm run format       # Prettier --write (ainda não validado neste ambiente)
+npm run check        # Prettier check + ESLint + TypeScript + testes
+npm run check:offline # apenas TypeScript + testes, NÃO substitui npm run check
+```
+
+No ambiente de desenvolvimento desta entrega, `npm run check:offline` validou TypeScript e **65/65 testes** (contratos, variables, templates, HTTP real local, loop, política, CLI e boundary browser). ESLint/Prettier reais e CI continuam **NOT_RUN/BLOCKED** por falta de dependências acessíveis no registry. Não há lockfile. Nenhuma spec foi marcada `DONE` apenas por esses resultados.
+
+## Limitações e próximas entregas
+
+- **T01:** validador runtime escrito à mão e JSON Schema ainda precisam de teste cruzado de paridade.
+- **T02:** ativação multi-arquivo com rollback best-effort, sem transação crash-safe/lock cross-process.
+- **T03:** completions estáticas básicas; JSON Schema provider completo de VS Code/Monaco e OAuth token resolver assíncrono pertencem à integração posterior.
+- **T04/T09:** DNS pinning contra rebinding, política de redirects avançada, binário/stream e artefatos grandes, OAuth/session, redirecionamento de método seguro e APIs de transporte multiplataforma incompletos. Não utilizar esta versão como ferramenta de produção em redes não confiáveis.
+- **T05:** foreach sequencial; sem executor paralelo, persisted progress ou recovery.
+- **F01:** CLI MVP, sem publicação npm e sem `run-dir`, sem autenticação OAuth e importadores.
+- **T08:** distribuição npm/CDN, runtime-browser, bundles por cliente e matriz de plataformas ainda não criados.
+- **T11/T10:** faltam instalações reais de ESLint e Prettier, lockfile `npm ci`, gates CI de release.
+- **F02-F10:** servidores/hosts adicionais, VS Code/Tauri e fluxos OAuth/import não implementados.
+
+Referências: [PLAN e catálogo](https://docs.google.com/document/d/1D2mh30rbWwcS0c-XTFmYsfjQO7cyRxDsnTcTEkFdWMQ/edit), [ADR-001](https://docs.google.com/document/d/1ZOyoBgnItyS_QQGgtaClwJwiPq7czJAmYSEnwpofGDc/edit), [AGENTS](https://docs.google.com/document/d/1EbeQcW6rNCbxq4_UgCiP6E-4UC9607Bz9Q2VfgO-EJA/edit).
