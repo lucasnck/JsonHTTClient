@@ -42,8 +42,8 @@ Código incremental na árvore `JsonHttpEngineWorkspace-with-history`:
 - `packages/runtime-node/src/execution/loop-data.ts`, `packages/sdk-js/src/loop-execution.ts`: loop sequencial, file dataset, stop, progresso, preflight/approval (T05 parcial).
 - `packages/sdk-js/src/execution.ts`, `apps/cli/src/main.ts`: SDK execute e CLI inicial Run/List/Explain (F01 parcial).
 - `packages/sdk-js/src/index.browser.ts`: entrada para módulos puramente JavaScript/browser-safe sem importar Node (T08 parcial; CDN/runtime browser não implementados).
-- `test/{templates,http,loop,cli,browser-boundary}.test.ts`: 43 novos testes após a T11, total 65.
+- `test/{templates,http,loop,cli,browser-boundary}.test.ts`: 44 novos testes após a T11, total 65.
 
-Validação AUTOMATIZADA realizada: Node.js v22.16.0, npm 10.9.2, TypeScript 5.8.3; `npm run check:offline` = typecheck/build PASS, 65/65 Node tests PASS, 0 FAIL. HTTP local (`node:http`) exercitou 200, 400, 500, masking, timeout, cancelamento, redirection e CLI. Isso NÃO é aprovação funcional do usuário nem gate completo T11/T10. ESLint/Prettier/lockfile/CI ainda NOT_RUN/BLOCKED.
+Validação AUTOMATIZADA realizada: Node.js v22.16.0, npm 10.9.2, TypeScript 5.8.3; `npm run check:offline` = typecheck/build PASS, 66/66 Node tests PASS, 0 FAIL. HTTP local (`node:http`) exercitou 200, 400, 500, masking, timeout, cancelamento, redirection e CLI. Isso NÃO é aprovação funcional do usuário nem gate completo T11/T10. ESLint/Prettier/lockfile/CI ainda NOT_RUN/BLOCKED.
 
 Riscos e pendências: DNS pinning/SSRF robusto não concluído; arquivos binários/stream e response binary ainda unsupported explicitamente; HTTP client ainda não suporta OAuth login; browser build por CDN ainda não existe; CLI não tem run-dir; TypeScript configs precisam rodar format/lint; manter todas TECH/FEATURE afetadas PENDING até cobertura integral. Sem push GitHub (repositório não foi localizado na conexão atual). A avaliação funcional do usuário foi explicitamente adiada para o final do desenvolvimento; continuar de forma incremental sem exigir aprovações intermediárias.

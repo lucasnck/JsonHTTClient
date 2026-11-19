@@ -73,7 +73,7 @@ npm run check        # Prettier check + ESLint + TypeScript + testes
 npm run check:offline # apenas TypeScript + testes, NÃO substitui npm run check
 ```
 
-No ambiente de desenvolvimento desta entrega, `npm run check:offline` validou TypeScript e **65/65 testes** (contratos, variables, templates, HTTP real local, loop, política, CLI e boundary browser). ESLint/Prettier reais e CI continuam **NOT_RUN/BLOCKED** por falta de dependências acessíveis no registry. Não há lockfile. Nenhuma spec foi marcada `DONE` apenas por esses resultados.
+No ambiente de desenvolvimento desta entrega, `npm run check:offline` validou TypeScript e **66/66 testes** (contratos, variables, templates, HTTP real local, loop, política, CLI e boundary browser). ESLint/Prettier reais e CI continuam **NOT_RUN/BLOCKED** por falta de dependências acessíveis no registry. Não há lockfile. Nenhuma spec foi marcada `DONE` apenas por esses resultados.
 
 ## Limitações e próximas entregas
 

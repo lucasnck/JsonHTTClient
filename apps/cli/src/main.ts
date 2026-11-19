@@ -50,7 +50,12 @@ async function run(fileName:string,args:CliArguments):Promise<number>{
   if(!validation.valid)throw new Error(validation.issues.map(i=>`${i.path}: ${i.message}`).join('; '));
   const file=validation.value as RequestFile;
   const snapshot=await loadVariableSnapshot(path,root);
+  const controller=new AbortController();
+  const interrupt=()=>controller.abort();
+  process.once('SIGINT',interrupt);
+  try {
   const options={
+    signal:controller.signal,
     snapshot,
     policy:{allowHttp:args.flags.has('--allow-http'),allowPrivateNetworks:args.flags.has('--allow-private-network')},
     approval:async()=>args.flags.has('--allow-protected'),
@@ -77,6 +82,9 @@ async function run(fileName:string,args:CliArguments):Promise<number>{
   const failed=!!session.diagnostic || (status!==undefined&&status>=400);
   session.dispose();
   return failed?1:0;
+  } finally {
+    process.removeListener('SIGINT',interrupt);
+  }
 }
 async function list(dirName:string):Promise<number>{
   const dir=resolve(dirName);const entries=await readdir(dir,{withFileTypes:true});
