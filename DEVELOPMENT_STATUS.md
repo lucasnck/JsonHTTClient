@@ -78,3 +78,51 @@ Documentação adicional: `docs/MCP-SETUP.md` e `docs/OAUTH-HOST.md`.
 - Testes `test/vscode-runner.test.ts`, `test/vscode-manifest.test.ts`: request de buffer não salvo, Request/Response JSON, masked Authorization, protected deny antes da rede, foreach cancelado, arquivos fora da raiz, menus/schemas. Total: **115/115 testes Node PASS**, typecheck/build PASS, pacote VSIX CRC PASS.
 - `npm run check` completo BLOQUEADO em `prettier: not found` (dependências npm indisponíveis); não alegar lint/format/CI PASS.
 - Status F04/F05/T08/T10/T11 = PENDING: não houve VS Code Extension Host smoke, OAuth host, validação oficial `@types/vscode`, VSIX install ou Marketplace; Desktop e npm/CDN também pendentes.
+
+## Incremento F06 / F01 run-dir / F03 & F08 MCP (2026-11-19)
+
+- F06 parcial: `DesktopTabSessions` usa `DesktopEngineBridge`, mantém somente abas abertas,
+  ActiveTab, Run/Stop/Response JSON editável, Save As, restauração sem reexecutar HTTP,
+  remove snapshots de abas fechadas. `NodeDesktopBridge` reusa
+  `packages/runtime-node/src/editor-execution.ts` para execução SDK sem duplicação de HTTP.
+  `NodeDesktopSessionStore` persiste no app-data escolhido, arquivo 0600, escrita atômica
+  por arquivo, sem tokens OAuth. Unsaved user edits não persistem; response body HTTP
+  permanece fiel ao contrato T01 (não é automaticamente mascarado). Tauri + React/Monaco
+  e instalador NÃO criados; não marcar F06 DONE.
+- F01 parcial: `executeRequestDirectory` percorre somente `*.request.json` físico
+  em ordem estável, `--recursive`, root autorizada e symlink skip; agrupa resultados
+  canônicos por arquivo, com resumo e Stop. CLI `run-dir` usa SDK, stdout apenas JSON
+  e progresso stderr.
+- F03/F08 parciais: MCP `request_run_dir` requer host --allow-run e
+  `import_apply` requer DUAS flags de host --allow-write + --allow-import-apply;
+  args de tools não autorizam a si próprias. Aplicação não sobrescreve arquivos
+  e valida root; protocolo stdio agora espera requests pendentes no close.
+- Regressão: `npm run check:offline` = TypeScript typecheck PASS, build PASS,
+  **126/126 node:test PASS**; tests de session store, sem network restore, acesso
+  filesystem, CLI run-dir e MCP permissions. npm run check full ainda BLOQUEADO
+  por Prettier/ESLint indisponíveis; VS Code real, MCP SDK oficial, Tauri e
+  segurança DNS de produção ainda NOT_RUN/PENDING.
+- Git: branch local main, remote origin configurado, sem push. Os artefatos serão
+  atualizados no Drive, com ZIP do repositório Git completo e fonte para publicação
+  pelo usuário posteriormente. A revisão funcional permanece agendada para o final.
+
+
+## Incremento T08 — Browser HTTP runtime e empacotamento ESM (2026-11-19)
+
+- `packages/runtime-browser/src/browser-http.ts`: adaptador fetch browser-safe
+  que preserva response 4xx/5xx, limita bytes/timeout, mascara somente headers,
+  nega redirects automáticos e mantém protected preflight. CORS/network failures
+  geram diagnostic out-of-band e response:null, sem inventar status HTTP.
+- `packages/sdk-js/src/index.browser.ts` exporta executeBrowserRequest e
+  capabilities explícitas de browser (sem filesystem/keychain/local OAuth).
+- `tooling/package-browser.mjs`: empacota grafo ESM estático compilado,
+  verificado contra Node-only imports, em artifacts/browser-esm, com index.mjs
+  e package.json; NÃO publica URL ou pacote npm, nem promete single-file bundle.
+- `test/browser-http.test.ts` e `test/browser-package.test.ts`: fetch mock,
+  CORS simulada, response bodies, protected, transporte e import ESM local.
+- `npm run check:offline`: typecheck/build **PASS, 130/130 testes PASS**, 0 fail.
+- `npm run browser:pack`: build local PASS. Testes reais de navegador/CDN/npm
+  publishing continuam PENDING; gate full ESLint/Prettier/CI ainda BLOQUEADO.
+- F06 permanece parcial (não há Tauri/React/Monaco), F01/F03/F08 parciais,
+  e todas as specs sem critério integral permanecem PENDING. Git origin/main
+  configurados sem qualquer push, seguindo pedido do usuário.

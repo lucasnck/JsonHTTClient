@@ -137,3 +137,32 @@ npm run vscode:pack
 Instalar pela opção **Install from VSIX** do VS Code desktop. Não precisa instalar CLI ou daemon global. A extensão usa somente workspaces locais confiáveis; os comandos Run/Stop são nativos, cada execução abre Response JSON editável, e as variáveis usam o mesmo resolvedor do motor. HTTP sem TLS e redes privadas são bloqueados por padrão; ajustes explícitos da máquina `jsonHttp.allowHttp` / `jsonHttp.allowPrivateNetworks` existem para uso local confiável.
 
 **Limitações:** o VSIX foi verificado estruturalmente como ZIP, não instalado no VS Code. `vscode-shim.d.ts` é temporário até disponibilidade dos tipos oficiais; Run/Stop foi testado pelo runner independente do VS Code com servidor HTTP local, não por teste de UI real. OAuth interactivo e restauração de sessões além do comportamento nativo do editor não estão completos. Consulte [apps/vscode/README.md](apps/vscode/README.md).
+
+## Incremento: F06 desktop foundation + F01 run-dir + MCP import_apply
+
+`apps/desktop/src` now includes a tested, platform-neutral tab/session model,
+Node host bridge using the same SDK execution service as VS Code, and an
+atomic app-data session store. Only open tabs are restored, and restoration
+**never performs HTTP**. Edited Responses remain editable and Save As writes
+user contents unchanged. Tauri + React/Monaco and installers are **not yet
+implemented**. See `apps/desktop/README.md`.
+
+The CLI also supports `run-dir` with optional `--recursive` and deterministic
+file order. MCP now exposes host-authorized `request_run_dir` and `import_apply`
+(requires separate write/apply permissions). See `docs/EXECUTE-DIRECTORY.md`.
+
+This slice is not a release: required ESLint/Prettier, GitHub CI, cross-platform
+packaging, DNS pinning, OAuth host login and official MCP interoperability are
+still pending. Git `origin` is `https://github.com/lucasnck/JsonHTTClient.git`,
+branch `main`; **no push** has been made, per user instruction.
+
+## T08 — Browser runtime ESM (incremento)
+
+`packages/runtime-browser/src/browser-http.ts` introduz `executeBrowserRequest`
+com fetch sujeito a CORS, variáveis fornecidas pelo host, preflight `protected`,
+HTTP 4xx/5xx real, timeout e limite de resposta. A saída mantém o contrato
+`{request,response,timings}`. Não há API Node, filesystem, keychain, OAuth
+local ou bypass de CORS. `npm run browser:pack` cria um grafo de módulos ESM
+estático em `artifacts/browser-esm`, importável localmente e pronto para ser
+hospedado futuramente sob um endereço CDN versionado. **Ainda não foi publicado.**
+Documentação: [docs/BROWSER-RUNTIME.md](docs/BROWSER-RUNTIME.md).

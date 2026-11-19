@@ -16,7 +16,8 @@
     "check:offline": "npm run typecheck && npm run test",
     "cli": "npm run build && node dist/apps/cli/src/main.js",
     "mcp": "npm run build && node dist/apps/mcp-server/src/main.js",
-    "vscode:pack": "npm run build && node tooling/package-vsix.mjs"
+    "vscode:pack": "npm run build && node tooling/package-vsix.mjs",
+    "browser:pack": "npm run build && node tooling/package-browser.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

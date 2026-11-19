@@ -46,3 +46,15 @@ The exact host's configuration format may differ; this is a generic illustration
 ## Safety notes
 
 Every tool resolves paths against the configured physical workspace root. Write and run are disabled unless the host explicitly enables them. The result is the engine's canonical JSON (HTTP errors include real status/body), with only named sensitive request/response HTTP headers masked; the API's response **body is not redacted**. No raw normal variable values are returned by `variables_explain`. Full SSRF/DNS pinning, host-assisted approvals and secure credential stores must be completed before production use.
+
+## Directory execution and explicitly authorized import writes
+
+An MCP host may invoke `request_run_dir` only if it starts the process with
+`--allow-run`. Optional `recursive:true` scans nested request directories,
+never symlinks. The returned `runs[]` holds canonical results for each request.
+
+`import_apply` is separate from the read-only `import_preview`. To opt into
+writes, the host must start the process with **both** `--allow-write` and
+`--allow-import-apply`. The tool does not execute imported scripts, send HTTP,
+overwrite files or write outside `--root`. Do not enable these privileges in
+untrusted environments. See `docs/EXECUTE-DIRECTORY.md`.

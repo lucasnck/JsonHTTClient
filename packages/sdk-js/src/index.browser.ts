@@ -18,3 +18,5 @@ export {ImportError,safeRequestFilename,uniquifyFileNames} from '../../importers
 export type {ImportPlan,ImportedRequest,ImportWarning,ImportFormat} from '../../importers/src/import-plan.js';
 export {preparePKCEAuthorization,validateOAuthRedirectUri} from '../../core/src/oauth/pkce.js';
 export type {PKCEAuthorization} from '../../core/src/oauth/pkce.js';
+export {executeBrowserRequest,BROWSER_CAPABILITIES,BrowserTransportError} from '../../runtime-browser/src/browser-http.js';
+export type {BrowserRuntimeOptions,BrowserExecution} from '../../runtime-browser/src/browser-http.js';

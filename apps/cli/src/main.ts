@@ -11,6 +11,7 @@ import {basename,dirname,relative,resolve,sep,isAbsolute} from 'node:path';
 import {loadVariableSnapshot} from '../../../packages/runtime-node/src/variable-files.js';
 import {executeRequestFile} from '../../../packages/sdk-js/src/execution.js';
 import {executeLoop} from '../../../packages/sdk-js/src/loop-execution.js';
+import {executeRequestDirectory} from '../../../packages/runtime-node/src/execution/request-directory.js';
 import {hoverVariable} from '../../../packages/language-service/src/language-service.js';
 import {isVariablesFileName,validateVariablesFile} from '../../../packages/core/src/variables/variables.js';
 import {validateRequestFile} from '../../../packages/core/src/contracts/validation.js';
@@ -27,7 +28,7 @@ function parseArgs(args:string[]):CliArguments {
       const value=args[++i];if(!value)throw new Error(`Falta valor para ${arg}`);
       values.set(arg,value);
     }else if(arg.startsWith('--')){
-      if(!['--allow-http','--allow-private-network','--allow-protected','--show-sensitive','--help','--save','--overwrite','--apply','--dry-run','--allow-run','--allow-write','--allow-oauth-discovery'].includes(arg))throw new Error(`Flag desconhecida: ${arg}`);
+      if(!['--allow-http','--allow-private-network','--allow-protected','--show-sensitive','--help','--save','--overwrite','--apply','--dry-run','--allow-run','--allow-write','--allow-oauth-discovery','--allow-import-apply','--recursive'].includes(arg))throw new Error(`Flag desconhecida: ${arg}`);
       flags.add(arg);
     }else positional.push(arg);
   }
@@ -35,6 +36,7 @@ function parseArgs(args:string[]):CliArguments {
 }
 const help=`json-http — HTTP Engine (CLI MVP)
   json-http run ./file.request.json --root . [--allow-http] [--allow-private-network] [--allow-protected] [--show-sensitive]
+  json-http run-dir ./folder --root . [--recursive] [--allow-http] [--allow-private-network] [--allow-protected]
   json-http list ./folder
   json-http variables explain ./file.request.json --root . --name baseUrl
   json-http variables activate ./dev.variables.json --root .
@@ -42,7 +44,7 @@ const help=`json-http — HTTP Engine (CLI MVP)
   json-http oauth discover https://issuer.example --root . [--save --file ./dev.variables.json --name OAuthToken --client-id client --scopes read,write]
   json-http oauth save --issuer https://issuer.example --file ./dev.variables.json --name OAuthToken --client-id client --root .
   json-http import curl|bash|openapi --file ./input.txt --root . [--apply --output-dir ./folder]
-  json-http mcp serve --root . [--allow-run] [--allow-write] [--allow-protected] [--allow-oauth-discovery]
+  json-http mcp serve --root . [--allow-run] [--allow-write] [--allow-protected] [--allow-oauth-discovery] [--allow-import-apply]
   json-http --help
 
 O Core é compartilhado; OAuth login/PKCE e OpenAPI YAML ainda não estão disponíveis.
@@ -98,6 +100,23 @@ async function run(fileName:string,args:CliArguments):Promise<number>{
   } finally {
     process.removeListener('SIGINT',interrupt);
   }
+}
+async function runDirectory(dirName:string,args:CliArguments):Promise<number>{
+  const root=await realpath(resolve(args.values.get('--root')??'.'));
+  const controller=new AbortController();
+  const interrupt=()=>controller.abort();
+  process.once('SIGINT',interrupt);
+  try{
+    const output=await executeRequestDirectory(resolve(dirName),{
+      authorizedRoot:root,recursive:args.flags.has('--recursive'),signal:controller.signal,
+      policy:{allowHttp:args.flags.has('--allow-http'),allowPrivateNetworks:args.flags.has('--allow-private-network')},
+      approval:async()=>args.flags.has('--allow-protected'),
+      revealSensitiveHeaders:args.flags.has('--show-sensitive'),
+      onFile:event=>process.stderr.write(`HTTP ${event.ordinal}/${event.total}: ${event.file}\n`),
+    });
+    process.stdout.write(JSON.stringify(output,null,2)+'\n');
+    return output.summary.status==='succeeded'?0:1;
+  }finally{process.removeListener('SIGINT',interrupt);}
 }
 async function list(dirName:string):Promise<number>{
   const dir=resolve(dirName);const entries=await readdir(dir,{withFileTypes:true});
@@ -179,6 +198,7 @@ export async function cliMain(argv:string[]):Promise<number>{
     await startMcpFromCli(mcpArgs);return 0;
   }
   if(action==='run' && rest.length===1)return run(rest[0]!,args);
+  if(action==='run-dir' && rest.length===1)return runDirectory(rest[0]!,args);
   if(action==='list'&&rest.length===1)return list(rest[0]!);
   if(action==='oauth'&&rest[0]==='discover'&&rest.length===2)return oauthCommand('discover',args,rest[1]);
   if(action==='oauth'&&rest[0]==='save'&&rest.length===1)return oauthCommand('save',args);

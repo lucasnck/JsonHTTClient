@@ -9,6 +9,8 @@ import {hoverVariable} from '../../../packages/language-service/src/language-ser
 import {loadVariableSnapshot,setVariableFileEnabled} from '../../../packages/runtime-node/src/variable-files.js';
 import {executeRequestFile} from '../../../packages/sdk-js/src/execution.js';
 import {executeLoop} from '../../../packages/sdk-js/src/loop-execution.js';
+import {executeRequestDirectory} from '../../../packages/runtime-node/src/execution/request-directory.js';
+import {applyImportPlan} from '../../../packages/runtime-node/src/importers/apply.js';
 import {discoverOAuthIssuer} from '../../../packages/runtime-node/src/oauth/discovery.js';
 import {saveOAuthVariable} from '../../../packages/runtime-node/src/oauth/variable-writer.js';
 import {createOAuthDefinition} from '../../../packages/core/src/oauth/discovery.js';
@@ -19,6 +21,7 @@ import type {HttpNetworkPolicy} from '../../../packages/core/src/security/polici
 export interface McpServerOptions {
   readonly root:string;
   readonly allowRun?:boolean;
+  readonly allowImportApply?:boolean;
   readonly allowWrite?:boolean;
   readonly allowProtected?:boolean;
   readonly allowOAuthDiscovery?:boolean;
@@ -37,10 +40,12 @@ const tools:readonly McpTool[]=[
   {name:'variables_list',description:'List variable file names, enabled/protected states and variable names only; no values.',inputSchema:schema({}, {directory:STRING})},
   {name:'variables_explain',description:'Explain which variables file defines a name; returns provenance without raw values.',inputSchema:schema({requestFile:STRING,name:STRING})},
   {name:'request_run',description:'Execute one request (or its foreach loop) only when the MCP host started this server with --allow-run. No sensitive headers in MCP result.',inputSchema:schema({file:STRING})},
+  {name:'request_run_dir',description:'Execute requests from a directory in lexical order, with --allow-run host permission; optional recursive traversal.',inputSchema:schema({directory:STRING},{recursive:{type:'boolean'}})},
   {name:'execution_stop',description:'Abort the one active HTTP run of this host process, if any.',inputSchema:schema({})},
   {name:'variables_activate_file',description:'Activate one variable file, disabling siblings. Requires host --allow-write.',inputSchema:schema({file:STRING})},
   {name:'variables_deactivate_file',description:'Deactivate a variables file. Requires host --allow-write.',inputSchema:schema({file:STRING})},
   {name:'import_preview',description:'Parse cURL/Bash/OpenAPI JSON text without executing scripts or changing files.',inputSchema:schema({format:{type:'string',enum:['curl','bash','openapi']},source:STRING})},
+  {name:'import_apply',description:'Write imported requests in a host-authorized directory without executing them. Requires host --allow-write and --allow-import-apply.',inputSchema:schema({format:{type:'string',enum:['curl','bash','openapi']},source:STRING,outputDir:STRING})},
   {name:'oauth_discover',description:'Read OAuth issuer metadata, if explicitly permitted by host startup.',inputSchema:schema({issuer:STRING})},
   {name:'oauth_save_variable',description:'Write OAuth configuration to explicitly chosen variables file. No login/tokens. Requires --allow-write.',inputSchema:schema({issuer:STRING,file:STRING,name:STRING,clientId:STRING},{scopes:{type:'array',items:STRING},overwrite:{type:'boolean'}})},
 ];
@@ -103,6 +108,17 @@ export class HttpEngineMcpServer {
       // Do not expose ordinary variable values via MCP: filenames/types still allow provenance.
       return {name:found.name,type:found.type,origin:relative(root,found.origin),protected:found.protected};
     }
+    if(name==='request_run_dir'){
+      if(!this.options.allowRun)throw new ToolError('PERMISSION_DENIED');
+      if(this.active)throw new ToolError('BUSY');
+      const directory=await fileInRoot(root,field(args,'directory'),'directory');
+      if(args.recursive!==undefined&&typeof args.recursive!=='boolean')throw new ToolError('INVALID_ARGUMENTS');
+      const controller=new AbortController();this.active=controller;
+      try{return await executeRequestDirectory(directory,{
+        authorizedRoot:root,recursive:args.recursive===true,signal:controller.signal,
+        policy:this.options.policy??{},approval:async()=>this.options.allowProtected===true,
+      });}finally{this.active=undefined;}
+    }
     if(name==='request_run'){
       if(!this.options.allowRun)throw new ToolError('PERMISSION_DENIED');
       if(this.active)throw new ToolError('BUSY');
@@ -138,6 +154,17 @@ export class HttpEngineMcpServer {
       if(format==='curl'||format==='bash')return importCurl(source,format);
       if(format==='openapi')return importOpenApi(source);
       throw new ToolError('INVALID_ARGUMENTS');
+    }
+    if(name==='import_apply'){
+      if(!this.options.allowWrite||!this.options.allowImportApply)throw new ToolError('PERMISSION_DENIED');
+      const format=field(args,'format'),source=field(args,'source');
+      if(source.length>300_000)throw new ToolError('INVALID_ARGUMENTS');
+      const destination=await fileInRoot(root,field(args,'outputDir'),'directory');
+      const plan=format==='curl'||format==='bash'?importCurl(source,format):
+        format==='openapi'?importOpenApi(source):undefined;
+      if(!plan)throw new ToolError('INVALID_ARGUMENTS');
+      const paths=await applyImportPlan(plan,destination,root);
+      return {files:paths.map(p=>relative(root,p)),warnings:plan.warnings};
     }
     if(name==='oauth_discover'){
       if(!this.options.allowOAuthDiscovery)throw new ToolError('PERMISSION_DENIED');
@@ -196,30 +223,38 @@ export class HttpEngineMcpServer {
 export async function serveMcpStdio(opts:McpServerOptions):Promise<void>{
   const server=new HttpEngineMcpServer(opts);
   const lines=createInterface({input:process.stdin,crlfDelay:Infinity,terminal:false});
+  const pending=new Set<Promise<void>>();
   lines.on('line',line=>{
+    if(pending.size>=64){
+      process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32600,message:'Too many concurrent requests'}})+'\n');return;
+    }
     if(Buffer.byteLength(line,'utf8')>1_048_576){
       process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Message too large'}})+'\n');return;
     }
     let message:unknown;
     try{message=JSON.parse(line) as unknown;}
     catch{process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Parse error'}})+'\n');return;}
-    void server.process(message).then(response=>{
+    const task=server.process(message).then(response=>{
       if(response)process.stdout.write(JSON.stringify(response)+'\n');
+    }).catch(()=>{
+      process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32603,message:'Internal error'}})+'\n');
     });
+    pending.add(task);void task.finally(()=>pending.delete(task));
   });
   await new Promise<void>(resolve=>lines.once('close',resolve));
+  await Promise.allSettled([...pending]); // never lose a response when stdin closes right after a request
 }
 export async function startMcpFromCli(argv:string[]):Promise<void>{
   let rootArg:string|undefined;const settings=new Set<string>();
   for(let i=0;i<argv.length;i++){
     const arg=argv[i];
     if(arg==='--root'){rootArg=argv[++i];if(!rootArg)throw new Error('MCP_ROOT_REQUIRED');}
-    else if(['--allow-run','--allow-write','--allow-protected','--allow-http','--allow-private-network','--allow-oauth-discovery'].includes(arg??''))settings.add(arg!);
+    else if(['--allow-run','--allow-write','--allow-protected','--allow-http','--allow-private-network','--allow-oauth-discovery','--allow-import-apply'].includes(arg??''))settings.add(arg!);
     else throw new Error('MCP_INVALID_FLAG');
   }
   if(!rootArg)throw new Error('MCP_ROOT_REQUIRED');
   const root=await realpath(resolve(rootArg));
   await serveMcpStdio({root,allowRun:settings.has('--allow-run'),allowWrite:settings.has('--allow-write'),
-    allowProtected:settings.has('--allow-protected'),allowOAuthDiscovery:settings.has('--allow-oauth-discovery'),
+    allowProtected:settings.has('--allow-protected'),allowImportApply:settings.has('--allow-import-apply'),allowOAuthDiscovery:settings.has('--allow-oauth-discovery'),
     policy:{allowHttp:settings.has('--allow-http'),allowPrivateNetworks:settings.has('--allow-private-network')}});
 }
