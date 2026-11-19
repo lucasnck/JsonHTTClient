@@ -13,7 +13,7 @@ function argumentsForSidecar(argv:string[]){
     const token=argv[i]!;
     if(allowed.has(token)){
       const next=argv[++i];if(!next)throw new Error('INVALID_STARTUP');fields.set(token,next);
-    }else if(token==='--allow-http'||token==='--allow-private-network'||token==='--allow-import-apply'){
+    }else if(token==='--allow-http'||token==='--allow-private-network'||token==='--allow-import-apply'||token==='--native-approval'||token==='--native-import-approval'){
       flags.add(token);
     }else throw new Error('INVALID_STARTUP');
   }
@@ -27,6 +27,8 @@ export async function startDesktopSidecar(argv:string[]):Promise<void>{
     root,appData:args.appData,
     policy:{allowHttp:args.flags.has('--allow-http'),allowPrivateNetworks:args.flags.has('--allow-private-network')},
     importWriteEnabled:args.flags.has('--allow-import-apply'),
+    nativeApprovalEnabled:args.flags.has('--native-approval'),
+    nativeImportEnabled:args.flags.has('--native-import-approval'),
     emit:packet=>process.stdout.write(JSON.stringify(packet)+'\n'),
   });
   const lines=createInterface({input:process.stdin,crlfDelay:Infinity});
@@ -41,6 +43,12 @@ export async function startDesktopSidecar(argv:string[]):Promise<void>{
     }
     if(typeof message!=='object'||message===null||Array.isArray(message))continue;
     const record=message as Record<string,unknown>;
+    if(record.op==='__nativeApprovalResponse'){
+      // This reserved operation is accepted solely on the process's private
+      // stdin. The Tauri desktop_send webview allowlist rejects it.
+      protocol.resolveNativeApproval(record.challenge,record.approved);
+      continue;
+    }
     if(typeof record.id!=='string'||typeof record.op!=='string')continue;
     const job=protocol.dispatch({id:record.id,op:record.op,...(record.args!==undefined?{args:record.args}:{})});
     pending.add(job);void job.finally(()=>pending.delete(job));

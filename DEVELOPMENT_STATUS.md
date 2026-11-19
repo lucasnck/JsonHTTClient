@@ -137,3 +137,9 @@ Documentação adicional: `docs/MCP-SETUP.md` e `docs/OAUTH-HOST.md`.
 - Segurança: workspace selecionado por diálogo nativo; sidecar sem aprovação protected na webview (deny por padrão); import_apply desabilitado pelo host Rust atual; snapshots mantêm header masking padrão, **mas body da API pode conter dados sensíveis**, armazenamento app-data ainda não criptografado.
 - Continuam pendentes: OAuth vault real, aprovação nativa protected, fluxo de Save As fora do workspace com grant explícito, OpenAPI YAML, instalação e smoke de desktop em Windows/macOS/Linux, DNS pinning/SSRF T09, lint/format e npm/CDN. F06/T08/T10/F09 permanecem PENDING até verificação integral.
 - Git origin continua `https://github.com/lucasnck/JsonHTTClient.git`, branch `main` **local** e nenhum push GitHub, por orientação do usuário.
+
+## Incremento F10/F08 — host-native approval (2026-11-19)
+
+- Sidecar Node/Rust native challenge protocol added for protected HTTP and import Apply; no approval can originate from a webview packet. One-use cryptographic challenge, explicit deny/timeout/Stop, origin-only protected HTTP display, filename-only import display; no accidental scripts/HTTP during preview.
+- Security tests cover one-use, delay, denial, simultaneous Stop, no HTTP before approval, secrets absent in approval events, batch preflight and stdin-only host response. Rust dialog integration is source-only: no cargo/rustc and no native smoke test.
+- See docs/DESKTOP-NATIVE-APPROVAL.md. The F06/F08/F10 specs remain PENDING until Rust/Tauri compilation, UI and installer smoke tests, native secrets and full validation. GitHub push remains explicitly out of scope.

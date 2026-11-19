@@ -3,7 +3,7 @@ use std::{
   io::{BufRead, BufReader, Write},
   path::{Path, PathBuf},
   process::{Child, ChildStdin, Command, Stdio},
-  sync::Mutex,
+  sync::{Arc, Mutex},
   thread,
 };
 use serde_json::Value;
@@ -11,7 +11,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 struct SidecarProcess {
   child: Child,
-  input: ChildStdin,
+  input: Arc<Mutex<ChildStdin>>,
 }
 #[derive(Default)]
 struct DesktopHost {
@@ -57,19 +57,67 @@ fn start_sidecar(app: &AppHandle, workspace: &Path) -> Result<SidecarProcess, St
     .arg(script)
     .arg("--root").arg(root)
     .arg("--app-data").arg(app_data)
+    .arg("--native-approval")
+    .arg("--native-import-approval")
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
     .stderr(Stdio::null())
     .spawn().map_err(|_| "SIDECAR_START_FAILED")?;
-  let input = child.stdin.take().ok_or("SIDECAR_STDIN_UNAVAILABLE")?;
+  let input = Arc::new(Mutex::new(child.stdin.take().ok_or("SIDECAR_STDIN_UNAVAILABLE")?));
   let output = child.stdout.take().ok_or("SIDECAR_STDOUT_UNAVAILABLE")?;
   let handle = app.clone();
+  let input_for_dialog = Arc::clone(&input);
+  let dialog_lock = Arc::new(Mutex::new(()));
   thread::spawn(move || {
     for line in BufReader::new(output).lines() {
       let Ok(raw) = line else {break};
-      // Never echo invalid/error payloads into a privileged command.
       if raw.len()>2*1024*1024 {continue;}
       if let Ok(message) = serde_json::from_str::<Value>(&raw) {
+        let event=message.get("event").and_then(Value::as_str).unwrap_or("");
+        if event=="native-approval-request" || event=="native-import-approval-request" {
+          // An approval challenge is PRIVILEGED. Never emit it to the webview.
+          // The browser UI cannot answer it using desktop_send's allowlist.
+          let Some(challenge)=message.get("challenge").and_then(Value::as_str) else {continue};
+          if challenge.len()!=36 || !challenge.bytes().all(|b| b.is_ascii_hexdigit() || b==b'-') {continue;}
+          let count=message.get("count").and_then(Value::as_u64).unwrap_or(1).min(10000);
+          let (title,prompt)=if event=="native-approval-request" {
+            let method=message.get("method").and_then(Value::as_str).unwrap_or("HTTP");
+            let origins: Vec<&str> = message.get("origins").and_then(Value::as_array)
+              .map(|items| items.iter().filter_map(Value::as_str).take(20).collect()).unwrap_or_default();
+            let files: Vec<&str> = message.get("protectedFiles").and_then(Value::as_array)
+              .map(|items| items.iter().filter_map(Value::as_str).take(20).collect()).unwrap_or_default();
+            ("Confirmar execução protegida",format!("Autorizar {} para {} request(s)?\n\nDestinos:\n{}\n\nVariáveis protegidas:\n{}\n\nSem aprovação, nenhum HTTP será enviado.",
+              method.chars().take(16).collect::<String>(),count,
+              origins.join("\n").chars().take(900).collect::<String>(),
+              files.join("\n").chars().take(900).collect::<String>()))
+          }else{
+            let folder=message.get("folder").and_then(Value::as_str).unwrap_or(".");
+            let files: Vec<&str> = message.get("files").and_then(Value::as_array)
+              .map(|items| items.iter().filter_map(Value::as_str).take(20).collect()).unwrap_or_default();
+            ("Confirmar importação",format!("Criar {} arquivo(s) JSON no workspace?\n\nPasta: {}\n\nArquivos:\n{}\n\nNenhum script será executado e arquivos existentes não serão sobrescritos.",
+              count,folder.chars().take(180).collect::<String>(),
+              files.join("\n").chars().take(900).collect::<String>()))
+          };
+          let challenge=challenge.to_owned();
+          let input=Arc::clone(&input_for_dialog);
+          let dialog_lock=Arc::clone(&dialog_lock);
+          thread::spawn(move || {
+            // Avoid overlapping approval dialogs for concurrent executions.
+            let Ok(_serial)=dialog_lock.lock() else {return};
+            let approved=matches!(rfd::MessageDialog::new()
+              .set_title(title)
+              .set_description(prompt)
+              .set_buttons(rfd::MessageButtons::YesNo)
+              .show(),rfd::MessageDialogResult::Yes);
+            let answer=serde_json::json!({
+              "op":"__nativeApprovalResponse","challenge":challenge,"approved":approved
+            }).to_string()+"\n";
+            if let Ok(mut writer)=input.lock(){
+              let _=writer.write_all(answer.as_bytes());let _=writer.flush();
+            }
+          });
+          continue;
+        }
         let _=handle.emit("desktop-message", message);
       }
     }
@@ -120,9 +168,10 @@ fn desktop_send(state: State<'_, DesktopHost>, packet: Value) -> Result<(), Stri
   if serialized.len()>2*1024*1024 {return Err("PACKET_TOO_LARGE".into());}
   let mut guard=state.process.lock().map_err(|_| "SIDECAR_LOCK_ERROR")?;
   let Some(sidecar)=guard.as_mut() else {return Err("OPEN_WORKSPACE_FIRST".into())};
-  sidecar.input.write_all(serialized.as_bytes()).map_err(|_| "SIDECAR_DISCONNECTED")?;
-  sidecar.input.write_all(b"\n").map_err(|_| "SIDECAR_DISCONNECTED")?;
-  sidecar.input.flush().map_err(|_| "SIDECAR_DISCONNECTED")?;
+  let mut input=sidecar.input.lock().map_err(|_| "SIDECAR_STDIN_LOCK_FAILED")?;
+  input.write_all(serialized.as_bytes()).map_err(|_| "SIDECAR_DISCONNECTED")?;
+  input.write_all(b"\n").map_err(|_| "SIDECAR_DISCONNECTED")?;
+  input.flush().map_err(|_| "SIDECAR_DISCONNECTED")?;
   Ok(())
 }
 

@@ -3,11 +3,11 @@ import {readFile,writeFile,lstat,realpath} from 'node:fs/promises';
 import {relative,resolve,sep,isAbsolute,dirname} from 'node:path';
 import {runEditorRequest} from '../../../packages/runtime-node/src/editor-execution.js';
 import type {DesktopEngineBridge} from './tab-sessions.js';
-import type {ApprovalAdapter,HttpNetworkPolicy} from '../../../packages/core/src/security/policies.js';
+import type {ApprovalRequest,HttpNetworkPolicy} from '../../../packages/core/src/security/policies.js';
 export interface NodeDesktopBridgeOptions {
   readonly root:string;
   readonly policy?:HttpNetworkPolicy;
-  readonly approval?:ApprovalAdapter;
+  readonly approval?:(request:ApprovalRequest,signal:AbortSignal)=>Promise<boolean>;
 }
 export async function createNodeDesktopBridge(options:NodeDesktopBridgeOptions):Promise<DesktopEngineBridge>{
   const root=await realpath(resolve(options.root));
@@ -29,7 +29,7 @@ export async function createNodeDesktopBridge(options:NodeDesktopBridgeOptions):
       const path=await authorized(requestPath,true);
       const output=await runEditorRequest({requestPath:path,authorizedRoot:root,text,signal,onProgress:event=>{
         if(event.type==='iteration_started')onProgress(`${event.ordinal}/${event.total}`);
-      },...(options.policy?{policy:options.policy}:{}),...(options.approval?{approval:options.approval}:{})});
+      },...(options.policy?{policy:options.policy}:{}),...(options.approval?{approval:(request:ApprovalRequest)=>options.approval!(request,signal)}:{})});
       return {json:output.json,warnings:output.warnings};
     },
     async saveAs(destination,content){
