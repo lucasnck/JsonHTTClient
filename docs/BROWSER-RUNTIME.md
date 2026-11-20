@@ -8,11 +8,14 @@ approval callback. OAuth session/keychain/callbacks and directory loops are
 CORS restrictions imposed by the requested API.
 
 ```ts
-import {executeBrowserRequest, createVariableSnapshot} from './index.mjs';
-const snapshot=createVariableSnapshot([]);
-const {result,diagnostic}=await executeBrowserRequest({
-  request:{method:'GET',url:'https://api.example.com/health'},
-},{snapshot});
+import { executeBrowserRequest, createVariableSnapshot } from './index.mjs';
+const snapshot = createVariableSnapshot([]);
+const { result, diagnostic } = await executeBrowserRequest(
+  {
+    request: { method: 'GET', url: 'https://api.example.com/health' },
+  },
+  { snapshot },
+);
 ```
 
 By default this adapter enforces HTTPS and blocks private-hostname requests;
@@ -33,7 +36,7 @@ npm run browser:pack
 
 The script traces static ESM dependencies from the browser entry and excludes
 Node-only runtime packages. It does not reserve an npm name, deploy a CDN,
-run a development web server, or claim a one-file bundle. Host the *entire*
+run a development web server, or claim a one-file bundle. Host the _entire_
 `browser-esm` folder under an immutable versioned HTTPS CDN URL and serve JavaScript
 with correct MIME type. The final npm/CDN publishing workflow remains F09/T10.
 

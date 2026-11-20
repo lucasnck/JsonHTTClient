@@ -6,8 +6,8 @@ Date: 2026-11-19. Status: **PARTIAL** (automation implemented; native release va
 
 - Root `desktop:tauri:dev` and `desktop:tauri:build`, but no cross-platform prerequisite installer.
 - Three separate npm manifests: root TypeScript engine, `apps/desktop/ui` Vite/React/Monaco and `apps/desktop` Tauri CLI.
-- A release gate that only checked the *existence* of the Node executable, not that it would run on the build OS/architecture.
-- A release command whose gate executed *before* the frontend could be built/staged.
+- A release gate that only checked the _existence_ of the Node executable, not that it would run on the build OS/architecture.
+- A release command whose gate executed _before_ the frontend could be built/staged.
 - Existing test that expected the desktop bundle gate to **always fail**, even after the environment was ready.
 
 ## New entrypoints

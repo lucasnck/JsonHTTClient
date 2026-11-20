@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.0"
+  },
+  "dependencies": {
+    "json-http-engine-workspace": "file:../.."
   }
 }

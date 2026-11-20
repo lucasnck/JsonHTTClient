@@ -3,6 +3,7 @@
 **Status: partial implementation, NOT an installable desktop release.**
 
 This app is designed to keep the single TypeScript HTTP engine from ADR-001.
+
 - `src/tab-sessions.ts`: tabs, Run/Stop, edited Response Save As and restoration.
 - `src/node-session-store.ts`: app-data-only session snapshots; only engine-generated masked headers are persisted. Unsaved edits are never written to session storage, and HTTP bodies may contain secrets.
 - `src/sidecar-protocol.ts`: restricted JSON-line commands for requests, Stop, variable activation, import preview/Apply and native approval challenges. All operations enforce workspace root.
@@ -78,14 +79,14 @@ assuming Debian package names exist.
 
 ### Commands and build order
 
-| Command | What it does |
-| --- | --- |
-| `npm run desktop:doctor` | Inspects Node, Rust/Cargo, native OS libraries, npm modules, lockfiles and generated artifacts; no installation |
-| `npm run desktop:setup` | Installs **missing** JavaScript dependencies in root, UI and Tauri host; uses `npm ci` when a lockfile exists |
-| `npm run desktop:dev` | Ensures npm packages, compiles the shared TypeScript engine and launches `tauri dev` (which starts Vite) |
-| `npm run desktop:runtime:stage` | Copies the currently executing Node binary into the native Tauri resources; validates OS, architecture and Node version; never commits the binary |
-| `npm run desktop:build` | Ensures packages, compiles engine + UI, stages Node, checks the bundle and calls Tauri release build |
-| `node tooling/desktop-workflow.mjs build --dry-run` | Prints all build steps without installing or modifying files |
+| Command                                             | What it does                                                                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run desktop:doctor`                            | Inspects Node, Rust/Cargo, native OS libraries, npm modules, lockfiles and generated artifacts; no installation                                   |
+| `npm run desktop:setup`                             | Installs **missing** JavaScript dependencies in root, UI and Tauri host; uses `npm ci` when a lockfile exists                                     |
+| `npm run desktop:dev`                               | Ensures npm packages, compiles the shared TypeScript engine and launches `tauri dev` (which starts Vite)                                          |
+| `npm run desktop:runtime:stage`                     | Copies the currently executing Node binary into the native Tauri resources; validates OS, architecture and Node version; never commits the binary |
+| `npm run desktop:build`                             | Ensures packages, compiles engine + UI, stages Node, checks the bundle and calls Tauri release build                                              |
+| `node tooling/desktop-workflow.mjs build --dry-run` | Prints all build steps without installing or modifying files                                                                                      |
 
 The build must run **natively for each target OS and CPU architecture**. A Node
 binary copied from Linux cannot be embedded into a Windows/macOS installer. The

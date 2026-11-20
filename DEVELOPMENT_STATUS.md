@@ -4,6 +4,7 @@ Data: 2026-11-19
 Status: implementação iniciada localmente; **T01/T02 permanecem PENDING no roadmap** até cumprir todos os critérios, integrar ao repositório definitivo e demonstrar regressão/CI.
 
 ## Código produzido
+
 - `contracts/request-file.schema.json`, `contracts/variables-file.schema.json`, `contracts/execution-result.schema.json` — contratos JSON Schema Draft 2020-12.
 - `packages/core/src/contracts/types.ts`, `validation.ts` — tipos públicos e validação inicial de RequestFile e Result.
 - `packages/core/src/variables/variables.ts` — normalização de nomes, prioridade alfabética, herança e origem efetiva de variáveis, e planejamento de toggle.
@@ -12,11 +13,13 @@ Status: implementação iniciada localmente; **T01/T02 permanecem PENDING no roa
 - `test/contracts.test.ts`, `test/variables.test.ts` — cenários unitários e integração filesystem.
 
 ## Validação executada
+
 Ambiente: Node.js v22.16.0, npm 10.9.2, TypeScript 5.8.3.
 Comando `npm run check`: TypeScript typecheck PASS, build PASS e Node test runner **18/18 testes PASS**. Os testes usam somente arquivos temporários e não enviam HTTP nem executam OAuth.
 Commit Git local: `cf60fb6` (`feat(m0): bootstrap T01 contracts and T02 variable resolver`). Nenhum push ou PR remoto foi realizado porque nenhum repositório JsonHttpEngine estava acessível pela conexão GitHub.
 
 ## Não implementado / pendências
+
 - T01 schema/validator parity usando validador Draft 2020-12; cobrir variants desconhecidas e JSON Schema de Result com fixture real de validator.
 - T02 cross-process locks e recuperação atomic multi-file após crash; melhorar verificações TOCTOU e platform filesystem.
 - T03 interpolação/Language Service; T04 transporte HTTP; T05 loop executor; T06 OAuth; T07 importadores; T08 runtime distribution ADR; T09 protected approval/SSRF; T10 CI.
@@ -24,11 +27,13 @@ Commit Git local: `cf60fb6` (`feat(m0): bootstrap T01 contracts and T02 variable
 - A decisão de distribuição T08 ainda depende de aprovação do usuário. O bootstrap TS não implica decisão por Node sidecar, daemon ou CLI binário.
 
 ## Próximas ações
+
 1. Alocar repositório GitHub do JsonHttpEngineWorkspace para persistir e versionar o código.
 2. Encerrar T01 e T02 com os testes complementares e schemas validados por biblioteca padrão.
 3. Desenvolver T03 (template resolver) e iniciar transporte HTTP T04 somente após estruturar T09/T08 necessárias.
 
 ## Atualização — T11: padronização do projeto (2026-11-19)
+
 - Implementação local: `.editorconfig`, `eslint.config.mjs` (flat config ESLint 9 com typescript-eslint type-aware), `prettier.config.mjs`, `.prettierignore`, `tsconfig.base.json` e `tsconfig.json` compartilhando strict flags, `.vscode/settings.json` / `extensions.json`, novos scripts npm e testes de configuração.
 - Node/TypeScript Typecheck e testes executados usando compilador e typings locais; evidências de comando devem acompanhar a entrega. Não se deve equiparar o script reduzido `check:offline` ao gate completo `npm run check`.
 - Bloqueio: sandbox não alcança o registro npm (EAI_AGAIN), não foi possível instalar ESLint, typescript-eslint, Prettier nem gerar lockfile npm; `lint`/`format:check` reais permanecem NOT_RUN. T11 status PENDING até instalação, formatação, lint e CI reproduzível.
@@ -37,6 +42,7 @@ Commit Git local: `cf60fb6` (`feat(m0): bootstrap T01 contracts and T02 variable
 ## Avanço de implementação — T03, T04, T05, T09, F01 e T08 browser boundary (2026-11-19)
 
 Código incremental na árvore `JsonHttpEngineWorkspace-with-history`:
+
 - `packages/core/src/templates/interpolation.ts`, `packages/language-service/src/language-service.ts`: interpolação de strings/JSON, referências e limits; hover e completion compartilhados (T03 parcial).
 - `packages/core/src/security/policies.ts`, `packages/runtime-node/src/http/fetch-transport.ts`: preflight de destino/protected, Node fetch com máscaras e response canonical (T04/T09 parciais).
 - `packages/runtime-node/src/execution/loop-data.ts`, `packages/sdk-js/src/loop-execution.ts`: loop sequencial, file dataset, stop, progresso, preflight/approval (T05 parcial).
@@ -105,7 +111,6 @@ Documentação adicional: `docs/MCP-SETUP.md` e `docs/OAUTH-HOST.md`.
 - Git: branch local main, remote origin configurado, sem push. Os artefatos serão
   atualizados no Drive, com ZIP do repositório Git completo e fonte para publicação
   pelo usuário posteriormente. A revisão funcional permanece agendada para o final.
-
 
 ## Incremento T08 — Browser HTTP runtime e empacotamento ESM (2026-11-19)
 

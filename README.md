@@ -56,7 +56,7 @@ workspace/
   "request": {
     "method": "GET",
     "url": "{{baseUrl}}/customers",
-    "headers": [{"name": "Accept", "value": "application/json"}]
+    "headers": [{ "name": "Accept", "value": "application/json" }]
   }
 }
 ```
@@ -68,7 +68,6 @@ node dist/apps/cli/src/main.js variables explain ./workspace/customers/list.requ
 ```
 
 HTTP não criptografado e redes privadas são **bloqueados por padrão**. Para testes explícitos com um servidor local confiável, acrescentar `--allow-http --allow-private-network`. `--allow-protected` autoriza a execução quando variáveis efetivas vierem de arquivos com `protected:true`. `--show-sensitive` é opt-in para exibir headers reais da execução na saída padrão. Não envie outputs desse modo para logs compartilhados.
-
 
 ### OAuth, importação e ativação (funcionalidades parciais F02)
 
@@ -119,7 +118,6 @@ No ambiente de desenvolvimento desta entrega, `npm run check:offline` validou Ty
 - **F02-F10:** F02, F03, F04 e F05 parciais; servidor MCP/VS Code e integrações Tauri/OAuth/Import visual ainda não concluídos nem validados oficialmente.
 
 Referências: [PLAN e catálogo](https://docs.google.com/document/d/1D2mh30rbWwcS0c-XTFmYsfjQO7cyRxDsnTcTEkFdWMQ/edit), [ADR-001](https://docs.google.com/document/d/1ZOyoBgnItyS_QQGgtaClwJwiPq7czJAmYSEnwpofGDc/edit), [AGENTS](https://docs.google.com/document/d/1EbeQcW6rNCbxq4_UgCiP6E-4UC9607Bz9Q2VfgO-EJA/edit).
-
 
 ## Incremento T06/F03 — OAuth injetado e MCP local
 

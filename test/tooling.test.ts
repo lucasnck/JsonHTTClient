@@ -17,7 +17,14 @@ test('T11: mandatory quality commands and dependencies are declared', async () =
     assert.equal(typeof scripts[name], 'string', `Missing npm run ${name}`);
   }
   assert.match(scripts.check ?? '', /format:check.*lint.*typecheck.*test/);
-  for (const name of ['eslint', 'typescript-eslint', '@eslint/js', 'eslint-config-prettier', 'prettier', 'typescript']) {
+  for (const name of [
+    'eslint',
+    'typescript-eslint',
+    '@eslint/js',
+    'eslint-config-prettier',
+    'prettier',
+    'typescript',
+  ]) {
     assert.equal(typeof deps[name], 'string', `Missing devDependency ${name}`);
   }
 });
@@ -26,7 +33,12 @@ test('T11: TypeScript strict baseline is shared with the root project', async ()
   const base = await readJson('tsconfig.base.json');
   const project = await readJson('tsconfig.json');
   const options = base.compilerOptions as Record<string, unknown>;
-  for (const name of ['strict', 'noUncheckedIndexedAccess', 'exactOptionalPropertyTypes', 'isolatedModules']) {
+  for (const name of [
+    'strict',
+    'noUncheckedIndexedAccess',
+    'exactOptionalPropertyTypes',
+    'isolatedModules',
+  ]) {
     assert.equal(options[name], true, `Missing compiler option ${name}`);
   }
   assert.equal(options.module, 'NodeNext');

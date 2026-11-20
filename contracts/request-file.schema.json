@@ -4,9 +4,7 @@
   "title": "JSON HTTP RequestFile",
   "description": "Associate only with files matching *.request.json. No $format/schemaVersion property.",
   "type": "object",
-  "required": [
-    "request"
-  ],
+  "required": ["request"],
   "additionalProperties": false,
   "properties": {
     "id": {
@@ -14,39 +12,25 @@
     },
     "request": {
       "type": "object",
-      "required": [
-        "method",
-        "url"
-      ],
+      "required": ["method", "url"],
       "additionalProperties": false,
       "properties": {
         "method": {
           "type": "string",
           "pattern": "^[A-Z][A-Z0-9-]*$",
-          "examples": [
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE"
-          ]
+          "examples": ["GET", "POST", "PUT", "PATCH", "DELETE"]
         },
         "url": {
           "type": "string",
           "minLength": 1,
-          "examples": [
-            "{{baseUrl}}/customers"
-          ]
+          "examples": ["{{baseUrl}}/customers"]
         },
         "headers": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "name",
-              "value"
-            ],
+            "required": ["name", "value"],
             "properties": {
               "name": {
                 "type": "string",
@@ -63,10 +47,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "name",
-              "value"
-            ],
+            "required": ["name", "value"],
             "properties": {
               "name": {
                 "type": "string",
@@ -82,9 +63,7 @@
           "oneOf": [
             {
               "type": "object",
-              "required": [
-                "type"
-              ],
+              "required": ["type"],
               "properties": {
                 "type": {
                   "const": "none"
@@ -94,10 +73,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "type",
-                "value"
-              ],
+              "required": ["type", "value"],
               "properties": {
                 "type": {
                   "const": "json"
@@ -108,10 +84,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "type",
-                "value"
-              ],
+              "required": ["type", "value"],
               "properties": {
                 "type": {
                   "const": "text"
@@ -124,10 +97,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "type",
-                "value"
-              ],
+              "required": ["type", "value"],
               "properties": {
                 "type": {
                   "const": "urlencoded"
@@ -137,10 +107,7 @@
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": [
-                      "name",
-                      "value"
-                    ],
+                    "required": ["name", "value"],
                     "properties": {
                       "name": {
                         "type": "string",
@@ -157,10 +124,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "type",
-                "parts"
-              ],
+              "required": ["type", "parts"],
               "properties": {
                 "type": {
                   "const": "multipart"
@@ -169,9 +133,7 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "name"
-                    ],
+                    "required": ["name"],
                     "properties": {
                       "name": {
                         "type": "string",
@@ -186,14 +148,10 @@
                     },
                     "oneOf": [
                       {
-                        "required": [
-                          "value"
-                        ]
+                        "required": ["value"]
                       },
                       {
-                        "required": [
-                          "file"
-                        ]
+                        "required": ["file"]
                       }
                     ],
                     "additionalProperties": false
@@ -204,10 +162,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "type",
-                "path"
-              ],
+              "required": ["type", "path"],
               "properties": {
                 "type": {
                   "const": "binary"
@@ -221,10 +176,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "type",
-                "path"
-              ],
+              "required": ["type", "path"],
               "properties": {
                 "type": {
                   "const": "stream"
@@ -247,9 +199,7 @@
                   "const": "none"
                 }
               },
-              "required": [
-                "type"
-              ],
+              "required": ["type"],
               "additionalProperties": false
             },
             {
@@ -265,11 +215,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "type",
-                "username",
-                "password"
-              ],
+              "required": ["type", "username", "password"],
               "additionalProperties": false
             },
             {
@@ -282,10 +228,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "type",
-                "token"
-              ],
+              "required": ["type", "token"],
               "additionalProperties": false
             }
           ]
@@ -295,18 +238,13 @@
     "loop": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "source"
-      ],
+      "required": ["source"],
       "properties": {
         "source": {
           "oneOf": [
             {
               "type": "object",
-              "required": [
-                "kind",
-                "items"
-              ],
+              "required": ["kind", "items"],
               "additionalProperties": false,
               "properties": {
                 "kind": {
@@ -322,10 +260,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "kind",
-                "path"
-              ],
+              "required": ["kind", "path"],
               "additionalProperties": false,
               "properties": {
                 "kind": {
@@ -343,10 +278,7 @@
           "const": "sequential"
         },
         "onError": {
-          "enum": [
-            "stop",
-            "continue"
-          ]
+          "enum": ["stop", "continue"]
         },
         "maxItems": {
           "type": "integer",

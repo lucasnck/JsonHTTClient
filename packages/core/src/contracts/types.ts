@@ -1,6 +1,9 @@
 /** T01 — Contract types; public JSON deliberately has no schemaVersion. */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' | (string & {});
-export interface NameValue { name: string; value: string }
+export interface NameValue {
+  name: string;
+  value: string;
+}
 export type RequestBody =
   | { type: 'none' }
   | { type: 'json'; value: unknown }
@@ -22,8 +25,7 @@ export interface HttpRequestDefinition {
   auth?: RequestAuth;
 }
 export type LoopSource =
-  | { kind: 'inline'; items: Record<string, unknown>[] }
-  | { kind: 'file'; path: string };
+  { kind: 'inline'; items: Record<string, unknown>[] } | { kind: 'file'; path: string };
 export interface LoopDefinition {
   source: LoopSource;
   mode?: 'sequential';
@@ -74,7 +76,8 @@ export interface ExecutionBatchResult {
   timings: { totalMs: number };
   results: ExecutionResult[];
 }
-export interface ValidationIssue { path: string; message: string }
-export type ValidationResult<T> =
-  | { valid: true; value: T }
-  | { valid: false; issues: ValidationIssue[] };
+export interface ValidationIssue {
+  path: string;
+  message: string;
+}
+export type ValidationResult<T> = { valid: true; value: T } | { valid: false; issues: ValidationIssue[] };
