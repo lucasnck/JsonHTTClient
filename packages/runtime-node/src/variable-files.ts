@@ -1,4 +1,4 @@
-import { readFile, realpath, readdir, lstat, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
+import { readFile, realpath, readdir, lstat, writeFile, rename, unlink } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {

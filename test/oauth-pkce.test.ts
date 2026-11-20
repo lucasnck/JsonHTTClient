@@ -22,7 +22,7 @@ function vault(): { store: OAuthCredentialVault; values: Map<string, OAuthCreden
     },
   };
 }
-test('T06: PKCE creates S256 challenge, 128+ bit state and redirects correctly', async () => {
+void test('T06: PKCE creates S256 challenge, 128+ bit state and redirects correctly', async () => {
   const input = await preparePKCEAuthorization(
     { authorizationEndpoint },
     { clientId: 'myapp', redirectUri: 'http://127.0.0.1:55000/callback', scopes: ['read', 'write'] },
@@ -37,7 +37,7 @@ test('T06: PKCE creates S256 challenge, 128+ bit state and redirects correctly',
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input.verifier));
   assert.equal(url.searchParams.get('code_challenge'), Buffer.from(digest).toString('base64url'));
 });
-test('T06: PKCE rejects non-loopback HTTP callback', async () => {
+void test('T06: PKCE rejects non-loopback HTTP callback', async () => {
   await assert.rejects(
     preparePKCEAuthorization(
       { authorizationEndpoint },
@@ -45,7 +45,7 @@ test('T06: PKCE rejects non-loopback HTTP callback', async () => {
     ),
   );
 });
-test('T06: Code+PKCE exchange rejects wrong state without network', async () => {
+void test('T06: Code+PKCE exchange rejects wrong state without network', async () => {
   const pkce = await preparePKCEAuthorization(
     { authorizationEndpoint },
     { clientId: 'a', redirectUri: 'http://127.0.0.1:5000/callback' },
@@ -73,7 +73,7 @@ test('T06: Code+PKCE exchange rejects wrong state without network', async () => 
   assert.equal(calls, 0);
   assert.equal(secret.values.size, 0);
 });
-test('T06: Exchange sends verifier to HTTPS endpoint and saves tokens only in vault', async () => {
+void test('T06: Exchange sends verifier to HTTPS endpoint and saves tokens only in vault', async () => {
   const pkce = await preparePKCEAuthorization(
     { authorizationEndpoint },
     { clientId: 'a', redirectUri: 'http://127.0.0.1:5000/callback' },
@@ -94,7 +94,8 @@ test('T06: Exchange sends verifier to HTTPS endpoint and saves tokens only in va
         called++;
         assert.equal(url, tokenEndpoint);
         assert.equal(opts?.redirect, 'error');
-        const form = new URLSearchParams(String(opts?.body));
+        assert.equal(typeof opts?.body, 'string');
+        const form = new URLSearchParams(opts?.body as string);
         assert.equal(form.get('code_verifier'), pkce.verifier);
         assert.equal(form.get('grant_type'), 'authorization_code');
         assert.equal(form.get('client_id'), 'a');
@@ -116,7 +117,7 @@ test('T06: Exchange sends verifier to HTTPS endpoint and saves tokens only in va
   assert.equal(secret.values.get('dev-OAuthToken')?.refreshToken, 'SECRET-REFRESH');
   assert.doesNotMatch(JSON.stringify(result), /SECRET/);
 });
-test('T06: Exchange rejects non-Bearer and private token destinations', async () => {
+void test('T06: Exchange rejects non-Bearer and private token destinations', async () => {
   const pkce = await preparePKCEAuthorization(
     { authorizationEndpoint },
     { clientId: 'a', redirectUri: 'http://127.0.0.1:55000/callback' },

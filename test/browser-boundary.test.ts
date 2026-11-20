@@ -4,14 +4,14 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import * as browserApi from '../packages/sdk-js/src/index.browser.js';
 
-test('T08: browser-safe entry compiles/imports and exposes pure interpolation', () => {
+void test('T08: browser-safe entry compiles/imports and exposes pure interpolation', () => {
   assert.equal(typeof browserApi.interpolateRequest, 'function');
   assert.equal(typeof browserApi.validateRequestFile, 'function');
   assert.equal(typeof browserApi.hoverVariable, 'function');
   assert.equal(typeof browserApi.checkHttpTarget, 'function');
   assert.equal('executeRequestFile' in browserApi, false);
 });
-test('T08: browser entry and pure core sources never import Node-only APIs', async () => {
+void test('T08: browser entry and pure core sources never import Node-only APIs', async () => {
   const files = [
     'packages/sdk-js/src/index.browser.ts',
     'packages/core/src/contracts/validation.ts',

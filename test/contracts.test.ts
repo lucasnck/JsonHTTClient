@@ -20,7 +20,7 @@ const single = {
   },
   timings: { totalMs: 24.4 },
 };
-test('T01: accepts request file identified by *.request.json suffix', () => {
+void test('T01: accepts request file identified by *.request.json suffix', () => {
   const request = {
     request: {
       method: 'POST',
@@ -32,11 +32,11 @@ test('T01: accepts request file identified by *.request.json suffix', () => {
   const v = validateRequestFile(request, 'create.request.json');
   assert.equal(v.valid, true, JSON.stringify(v));
 });
-test('T01: regular data.json never becomes an executable request', () => {
+void test('T01: regular data.json never becomes an executable request', () => {
   const v = validateRequestFile({ request: { method: 'GET', url: 'https://example.test' } }, 'data.json');
   assert.equal(v.valid, false);
 });
-test('T01: legacy schemaVersion/$format/execution-style keys are rejected', () => {
+void test('T01: legacy schemaVersion/$format/execution-style keys are rejected', () => {
   const v = validateRequestFile(
     { $format: 'http', schemaVersion: 1, request: { method: 'GET', url: 'https://example.test' } },
     'test.request.json',
@@ -44,7 +44,7 @@ test('T01: legacy schemaVersion/$format/execution-style keys are rejected', () =
   assert.equal(v.valid, false);
   if (!v.valid) assert.ok(v.issues.some((i) => i.path === '/schemaVersion'));
 });
-test('T01: body discriminator, loop and options validated', () => {
+void test('T01: body discriminator, loop and options validated', () => {
   const value = {
     request: { method: 'GET', url: 'https://example.test', body: { type: 'binary', path: '../../binary' } },
     loop: { source: { kind: 'inline', items: [{ id: 1 }, { id: 2 }] }, onError: 'continue', maxItems: 10 },
@@ -57,19 +57,19 @@ test('T01: body discriminator, loop and options validated', () => {
   };
   assert.equal(validateRequestFile(bad, 'loop.request.json').valid, false);
 });
-test('T01: HTTP 400 retains real server status, headers and error body', () => {
+void test('T01: HTTP 400 retains real server status, headers and error body', () => {
   assert.equal(validateExecutionResult(single).valid, true);
   assert.deepEqual(Object.keys(single), ['request', 'response', 'timings']);
   assert.deepEqual(single.response.body, { type: 'json', value: { error: 'Invalid customer' } });
 });
-test('T01: transport failure has response:null without fabricated HTTP payload', () => {
+void test('T01: transport failure has response:null without fabricated HTTP payload', () => {
   assert.equal(validateExecutionResult({ ...single, response: null }).valid, true);
 });
-test('T01: no legacy root execution metadata', () => {
+void test('T01: no legacy root execution metadata', () => {
   const v = validateExecutionResult({ ...single, executionId: 'not-allowed', ok: false });
   assert.equal(v.valid, false);
 });
-test('T01: one batch JSON with per-item exactly the single result shape', () => {
+void test('T01: one batch JSON with per-item exactly the single result shape', () => {
   const batch = {
     summary: {
       status: 'partial_failed',
@@ -87,7 +87,7 @@ test('T01: one batch JSON with per-item exactly the single result shape', () => 
   const wrong = { ...batch, results: [{ ...single, outcome: 'failed' }] };
   assert.equal(validateExecutionBatchResult(wrong).valid, false);
 });
-test('T01: invalid batch accounting is rejected', () => {
+void test('T01: invalid batch accounting is rejected', () => {
   const batch = {
     summary: {
       status: 'cancelled',

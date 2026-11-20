@@ -5,9 +5,14 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 const read = async (path: string) => readFile(join(process.cwd(), path), 'utf8');
-test('F06 Tauri 2 manifest points to React/Monaco UI and native Rust IPC only', async () => {
-  const config = JSON.parse(await read('apps/desktop/src-tauri/tauri.conf.json')) as any;
-  const packageJson = JSON.parse(await read('apps/desktop/ui/package.json')) as any;
+void test('F06 Tauri 2 manifest points to React/Monaco UI and native Rust IPC only', async () => {
+  const config = JSON.parse(await read('apps/desktop/src-tauri/tauri.conf.json')) as {
+    $schema: string;
+    build: { frontendDist: string };
+  };
+  const packageJson = JSON.parse(await read('apps/desktop/ui/package.json')) as {
+    dependencies: { '@monaco-editor/react': string; react: string };
+  };
   const source = await read('apps/desktop/src-tauri/src/main.rs');
   assert.match(config.$schema, /tauri.app\/config\/2/);
   assert.equal(config.build.frontendDist, '../ui/dist');
@@ -19,7 +24,7 @@ test('F06 Tauri 2 manifest points to React/Monaco UI and native Rust IPC only', 
   assert.match(source, /"desktop-message"/);
   assert.doesNotMatch(source, /\.arg\("-c"\)/);
 });
-test('F06 release gate matches actual build readiness, not a hardcoded failure expectation', async () => {
+void test('F06 release gate matches actual build readiness, not a hardcoded failure expectation', async () => {
   const paths = [
     'dist/apps/desktop/src/sidecar.js',
     'apps/desktop/ui/dist/index.html',
@@ -36,13 +41,13 @@ test('F06 release gate matches actual build readiness, not a hardcoded failure e
     assert.match(result.stderr, /Desktop bundle NOT READY/);
   }
 });
-test('F06 UI invokes only narrow Rust host calls and Monaco JS editor', async () => {
+void test('F06 UI invokes only narrow Rust host calls and Monaco JS editor', async () => {
   const frontend = await read('apps/desktop/ui/src/App.tsx');
   const client = await read('apps/desktop/ui/src/native.ts');
   assert.match(frontend, /\bEditor\b/);
   assert.match(client, /desktop_choose_workspace/);
   assert.match(client, /desktop_send/);
-  assert.match(await read('apps/desktop/ui/src/main.tsx'), /loader.config\(\{monaco\}\)/);
+  assert.match(await read('apps/desktop/ui/src/main.tsx'), /loader\.config\(\{\s*monaco\s*\}\)/);
   assert.match(await read('apps/desktop/ui/src/main.tsx'), /JsonWorker/);
   assert.doesNotMatch(client, /node:fs|child_process|exec\(/);
   assert.match(frontend, /importPreview/);

@@ -6,7 +6,7 @@ import { executeRequestFile } from '../../sdk-js/src/execution.js';
 import { executeLoop } from '../../sdk-js/src/loop-execution.js';
 import type { LoopEvent } from '../../sdk-js/src/loop-execution.js';
 import type { ApprovalAdapter, HttpNetworkPolicy } from '../../core/src/security/policies.js';
-import type { RequestFile, ExecutionResult, ExecutionBatchResult } from '../../core/src/contracts/types.js';
+import type { ExecutionResult, ExecutionBatchResult } from '../../core/src/contracts/types.js';
 import type { OAuthTokenProvider } from '../../sdk-js/src/oauth-request.js';
 
 export type RunResult = {
@@ -39,7 +39,7 @@ export async function runEditorRequest(options: EditorRunOptions): Promise<RunRe
   const validated = validateRequestFile(json, basename(options.requestPath));
   if (!validated.valid)
     throw new Error(`RequestFile inválido: ${validated.issues.map((x) => x.path).join(', ')}`);
-  const request = validated.value as RequestFile;
+  const request = validated.value;
   // loadVariableSnapshot also enforces the request's canonical path and the authorized root.
   const snapshot = await loadVariableSnapshot(options.requestPath, options.authorizedRoot);
   const common = {

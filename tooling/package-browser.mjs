@@ -1,6 +1,6 @@
 /** Static browser ESM dependency graph. No Node-only modules, no CDN endpoint invented. */
 import { readFile, mkdir, copyFile, rm, writeFile } from 'node:fs/promises';
-import { resolve, relative, dirname, join, sep, isAbsolute } from 'node:path';
+import { resolve, relative, dirname, sep, isAbsolute } from 'node:path';
 const cwd = process.cwd();
 const dist = resolve(cwd, 'dist');
 const out = resolve(cwd, 'artifacts/browser-esm');

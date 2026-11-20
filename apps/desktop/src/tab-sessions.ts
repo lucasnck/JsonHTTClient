@@ -132,7 +132,7 @@ export class DesktopTabSessions {
       throw new DesktopSessionError('INVALID_SNAPSHOT', 'Invalid desktop session');
     const ids = new Set<string>();
     const restored: DesktopTab[] = [];
-    for (const tab of state.tabs as PersistedTab[]) {
+    for (const tab of state.tabs) {
       if (ids.has(tab.id)) throw new DesktopSessionError('INVALID_SNAPSHOT', 'Duplicate tab id');
       ids.add(tab.id);
       if (tab.kind === 'request') {
@@ -169,7 +169,7 @@ export class DesktopTabSessions {
     }
     this.tabs = restored;
     this.active = restored.some((x) => x.id === state.activeTabId)
-      ? (state.activeTabId as string)
+      ? state.activeTabId
       : (restored.at(-1)?.id ?? null);
     await this.persist();
   }

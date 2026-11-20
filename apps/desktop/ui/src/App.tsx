@@ -125,7 +125,9 @@ export function App() {
     try {
       await call('stop', { tabId: running.id });
       setProgress('Cancelando...');
-    } catch {}
+    } catch {
+      // The request may have finished before the Stop command reached the host.
+    }
   };
   const select = async (tab: DesktopTab) => {
     const state = await call<DesktopState>('select', { tabId: tab.id });

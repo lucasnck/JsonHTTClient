@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import {
   compareVariableFileNames,
   createVariableSnapshot,
-  planVariableFileActivation,
   validateVariablesFile,
 } from '../packages/core/src/variables/variables.js';
 import {
@@ -25,7 +24,7 @@ async function makeFixture() {
 }
 const writeJson = (path: string, content: unknown) =>
   writeFile(path, JSON.stringify(content, null, 2) + '\n');
-test('T02: accept canonical object and reject legacy variables[]', () => {
+void test('T02: accept canonical object and reject legacy variables[]', () => {
   assert.equal(
     validateVariablesFile({ enabled: true, protected: false, baseUrl: 'https://a.test' }).valid,
     true,
@@ -34,7 +33,7 @@ test('T02: accept canonical object and reject legacy variables[]', () => {
   assert.equal(validateVariablesFile([{ name: 'baseUrl', value: 'a' }]).valid, false);
   assert.equal(validateVariablesFile({ enabled: 'true' }).valid, false);
 });
-test('T02: OAuthToken is a property in any variables file without actual tokens', () => {
+void test('T02: OAuthToken is a property in any variables file without actual tokens', () => {
   assert.equal(
     validateVariablesFile({
       baseUrl: 'https://api.test',
@@ -59,7 +58,7 @@ test('T02: OAuthToken is a property in any variables file without actual tokens'
     false,
   );
 });
-test('T02: deterministic case-insensitive alphabetical order and raw tie-break', () => {
+void test('T02: deterministic case-insensitive alphabetical order and raw tie-break', () => {
   assert.equal(compareVariableFileNames('dev.variables.json', 'prod.variables.json') < 0, true);
   assert.equal(compareVariableFileNames('A.variables.json', 'a.variables.json') < 0, true);
   const names = ['prod.variables.json', 'A.variables.json', 'dev.variables.json', 'a.variables.json'].sort(
@@ -72,7 +71,7 @@ test('T02: deterministic case-insensitive alphabetical order and raw tie-break',
     'prod.variables.json',
   ]);
 });
-test('T02: first active file with key wins, next active supplies missing keys', () => {
+void test('T02: first active file with key wins, next active supplies missing keys', () => {
   const snap = createVariableSnapshot([
     {
       folderPath: '/root/Customers',
@@ -109,7 +108,7 @@ test('T02: first active file with key wins, next active supplies missing keys', 
   assert.ok(snap.get('baseUrl')?.filePath.endsWith('dev.variables.json'));
   assert.equal(snap.get('extra')?.value, 'from-dev');
 });
-test('T02: physical nearest folder takes priority over parent even when parent name sorts earlier', async () => {
+void test('T02: physical nearest folder takes priority over parent even when parent name sorts earlier', async () => {
   const ctx = await makeFixture();
   try {
     await writeJson(join(ctx.root, 'a.variables.json'), {
@@ -131,7 +130,7 @@ test('T02: physical nearest folder takes priority over parent even when parent n
     await ctx.cleanup();
   }
 });
-test('T02: disabled file ignored with fallback to parent', async () => {
+void test('T02: disabled file ignored with fallback to parent', async () => {
   const ctx = await makeFixture();
   try {
     await writeJson(join(ctx.root, 'variables.json'), { enabled: true, baseUrl: 'https://root.test' });
@@ -142,7 +141,7 @@ test('T02: disabled file ignored with fallback to parent', async () => {
     await ctx.cleanup();
   }
 });
-test('T02: explicit Activate disables all siblings; Disable changes only selected', async () => {
+void test('T02: explicit Activate disables all siblings; Disable changes only selected', async () => {
   const ctx = await makeFixture();
   try {
     const dev = join(ctx.dir, 'dev.variables.json'),
@@ -153,7 +152,7 @@ test('T02: explicit Activate disables all siblings; Disable changes only selecte
     await writeJson(other, { enabled: true, extra: 123 });
     let r = await setVariableFileEnabled(prod, true, ctx.root);
     assert.ok(r.changedFiles.length >= 2);
-    const read = async (p: string) => JSON.parse(await readFile(p, 'utf8'));
+    const read = async (p: string) => JSON.parse(await readFile(p, 'utf8')) as Record<string, unknown>;
     assert.equal((await read(dev)).enabled, false);
     assert.equal((await read(prod)).enabled, true);
     assert.equal((await read(other)).enabled, false);
@@ -166,7 +165,7 @@ test('T02: explicit Activate disables all siblings; Disable changes only selecte
     await ctx.cleanup();
   }
 });
-test('T02: protected provenance follows winning definition only', async () => {
+void test('T02: protected provenance follows winning definition only', async () => {
   const s = createVariableSnapshot([
     {
       folderPath: '/root',
@@ -186,15 +185,22 @@ test('T02: protected provenance follows winning definition only', async () => {
   ]);
   assert.equal(s.get('baseUrl')?.protected, false);
 });
-test('T02: runtime rejects outside-root reads and symlink variable files', async () => {
+void test('T02: runtime rejects outside-root reads and symlink variable files', async (t) => {
   const ctx = await makeFixture();
   const outside = await mkdtemp(join(tmpdir(), 'json-http-outside-'));
   try {
     await assert.rejects(loadVariableSnapshot(ctx.request, outside), VariableFileError);
     const target = join(outside, 'secret.txt');
     await writeFile(target, '{"enabled":true}');
-    await symlink(target, join(ctx.dir, 'linked.variables.json'));
-    await assert.rejects(loadVariableSnapshot(ctx.request, ctx.root), VariableFileError);
+    let symlinkCreated = false;
+    try {
+      await symlink(target, join(ctx.dir, 'linked.variables.json'), 'file');
+      symlinkCreated = true;
+    } catch (error) {
+      if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EPERM') throw error;
+      t.diagnostic('File symlinks require Windows Developer Mode or elevated privileges');
+    }
+    if (symlinkCreated) await assert.rejects(loadVariableSnapshot(ctx.request, ctx.root), VariableFileError);
   } finally {
     await ctx.cleanup();
     await rm(outside, { recursive: true, force: true });

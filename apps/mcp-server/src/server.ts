@@ -1,9 +1,7 @@
-import { randomUUID } from 'node:crypto';
 import { readFile, readdir, realpath, lstat } from 'node:fs/promises';
 import { basename, relative, resolve, sep, isAbsolute } from 'node:path';
 import { createInterface } from 'node:readline';
 import { validateRequestFile } from '../../../packages/core/src/contracts/validation.js';
-import type { RequestFile } from '../../../packages/core/src/contracts/types.js';
 import {
   validateVariablesFile,
   isVariablesFileName,
@@ -33,8 +31,6 @@ export interface McpServerOptions {
   readonly allowOAuthDiscovery?: boolean;
   readonly policy?: HttpNetworkPolicy;
 }
-type JsonRpcId = number | string | null;
-type JsonRpcMessage = { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: unknown };
 interface McpTool {
   name: string;
   description: string;
@@ -235,7 +231,7 @@ export class HttpEngineMcpServer {
           recursive: args.recursive === true,
           signal: controller.signal,
           policy: this.options.policy ?? {},
-          approval: async () => this.options.allowProtected === true,
+          approval: () => Promise.resolve(this.options.allowProtected === true),
         });
       } finally {
         this.active = undefined;
@@ -255,19 +251,19 @@ export class HttpEngineMcpServer {
           snapshot,
           policy: this.options.policy ?? {},
           signal: controller.signal,
-          approval: async () => this.options.allowProtected === true,
+          approval: () => Promise.resolve(this.options.allowProtected === true),
           requestPath: path,
           authorizedRoot: root,
         };
-        if ((parsed.value as RequestFile).loop) {
-          const batch = await executeLoop(parsed.value as RequestFile, common);
+        if (parsed.value.loop) {
+          const batch = await executeLoop(parsed.value, common);
           try {
             return batch.result;
           } finally {
             batch.dispose();
           }
         }
-        const session = await executeRequestFile(parsed.value as RequestFile, common);
+        const session = await executeRequestFile(parsed.value, common);
         try {
           return session.result;
         } finally {
@@ -329,7 +325,7 @@ export class HttpEngineMcpServer {
       if (overwrite !== undefined && typeof overwrite !== 'boolean') throw new ToolError('INVALID_ARGUMENTS');
       const config = createOAuthDefinition(
         { issuer },
-        { clientId, ...(scopes === undefined ? {} : { scopes: scopes as string[] }) },
+        { clientId, ...(scopes === undefined ? {} : { scopes: scopes }) },
       );
       const path = resolve(root, field(args, 'file'));
       assertInside(root, path);

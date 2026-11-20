@@ -30,13 +30,13 @@ async function temp() {
   return { root, dir: join(root, 'requests'), close: () => rm(root, { recursive: true, force: true }) };
 }
 
-test('T06: OIDC and RFC 8414 metadata candidates preserve issuer path', () => {
+void test('T06: OIDC and RFC 8414 metadata candidates preserve issuer path', () => {
   assert.deepEqual(oauthMetadataCandidates(issuer), [
     'https://identity.example.test/tenant/.well-known/openid-configuration',
     'https://identity.example.test/.well-known/oauth-authorization-server/tenant',
   ]);
 });
-test('T06: parse metadata rejects mismatched issuer and insecure endpoints', () => {
+void test('T06: parse metadata rejects mismatched issuer and insecure endpoints', () => {
   assert.throws(() =>
     parseOAuthMetadata(issuer, 'https://identity.example.test/.well-known/openid-configuration', {
       ...metadata,
@@ -50,7 +50,7 @@ test('T06: parse metadata rejects mismatched issuer and insecure endpoints', () 
     }),
   );
 });
-test('T06: discovery only reads metadata; no browser/session/write', async () => {
+void test('T06: discovery only reads metadata; no browser/session/write', async () => {
   const visited: string[] = [];
   const plan = await discoverOAuthIssuer(issuer, {
     fetcher: async (url, init) => {
@@ -67,7 +67,7 @@ test('T06: discovery only reads metadata; no browser/session/write', async () =>
   assert.deepEqual(plan.requires, ['clientId', 'scopes', 'redirect']);
   assert.equal(Object.hasOwn(plan.suggestedDefinition, 'clientId'), false);
 });
-test('T06: discovery falls back to RFC8414 when OIDC unavailable', async () => {
+void test('T06: discovery falls back to RFC8414 when OIDC unavailable', async () => {
   let count = 0;
   const plan = await discoverOAuthIssuer(issuer, {
     fetcher: async (url, opts) => {
@@ -79,7 +79,7 @@ test('T06: discovery falls back to RFC8414 when OIDC unavailable', async () => {
   assert.equal(count, 2);
   assert.match(plan.metadataUrl, /oauth-authorization-server/);
 });
-test('T06: discovery blocks local issuer and DNS private addresses', async () => {
+void test('T06: discovery blocks local issuer and DNS private addresses', async () => {
   await assert.rejects(
     discoverOAuthIssuer('http://localhost:5000', { fetcher: mockedFetch(), lookupHost: lookup }),
   );
@@ -87,13 +87,13 @@ test('T06: discovery blocks local issuer and DNS private addresses', async () =>
     discoverOAuthIssuer(issuer, { fetcher: mockedFetch(), lookupHost: async () => ['127.0.0.1'] }),
   );
 });
-test('T06: discovery rejects oversized responses', async () => {
+void test('T06: discovery rejects oversized responses', async () => {
   await assert.rejects(
     discoverOAuthIssuer(issuer, { fetcher: mockedFetch(metadata), lookupHost: lookup, maxMetadataBytes: 30 }),
     { code: 'METADATA_TOO_LARGE' },
   );
 });
-test('T06: create config requires user-supplied client and never includes tokens', () => {
+void test('T06: create config requires user-supplied client and never includes tokens', () => {
   assert.throws(() => createOAuthDefinition({ issuer }, { clientId: '' }));
   const config = createOAuthDefinition({ issuer }, { clientId: 'dev-client', scopes: ['read'] });
   assert.deepEqual(config, {
@@ -105,7 +105,7 @@ test('T06: create config requires user-supplied client and never includes tokens
   });
   assert.equal(Object.hasOwn(config, 'accessToken'), false);
 });
-test('T06: save OAuth into chosen new file creates it disabled if an active sibling exists', async () => {
+void test('T06: save OAuth into chosen new file creates it disabled if an active sibling exists', async () => {
   const f = await temp();
   try {
     await writeFile(
@@ -132,7 +132,7 @@ test('T06: save OAuth into chosen new file creates it disabled if an active sibl
     await f.close();
   }
 });
-test('T06: save into existing chosen file keeps other variables and requires overwrite consent', async () => {
+void test('T06: save into existing chosen file keeps other variables and requires overwrite consent', async () => {
   const f = await temp();
   try {
     const p = join(f.dir, 'variables.json');
@@ -165,7 +165,7 @@ test('T06: save into existing chosen file keeps other variables and requires ove
     await f.close();
   }
 });
-test('T06: D35 first file wins with two OAuth definitions active in same folder', async () => {
+void test('T06: D35 first file wins with two OAuth definitions active in same folder', async () => {
   const f = await temp();
   try {
     await writeFile(
@@ -184,7 +184,7 @@ test('T06: D35 first file wins with two OAuth definitions active in same folder'
     await f.close();
   }
 });
-test('T06: reject traversal and invalid variable destination', async () => {
+void test('T06: reject traversal and invalid variable destination', async () => {
   const f = await temp();
   try {
     const config = createOAuthDefinition({ issuer }, { clientId: 'x' });

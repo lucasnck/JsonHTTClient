@@ -7,7 +7,7 @@ import { discoverOAuthIssuer } from '../../../packages/runtime-node/src/oauth/di
 import { saveOAuthVariable } from '../../../packages/runtime-node/src/oauth/variable-writer.js';
 import { createOAuthDefinition } from '../../../packages/core/src/oauth/discovery.js';
 import { setVariableFileEnabled } from '../../../packages/runtime-node/src/variable-files.js';
-import { basename, dirname, relative, resolve, sep, isAbsolute } from 'node:path';
+import { basename, relative, resolve, sep, isAbsolute } from 'node:path';
 import { loadVariableSnapshot } from '../../../packages/runtime-node/src/variable-files.js';
 import { executeRequestFile } from '../../../packages/sdk-js/src/execution.js';
 import { executeLoop } from '../../../packages/sdk-js/src/loop-execution.js';
@@ -18,7 +18,7 @@ import {
   validateVariablesFile,
 } from '../../../packages/core/src/variables/variables.js';
 import { validateRequestFile } from '../../../packages/core/src/contracts/validation.js';
-import type { ExecutionBatchResult, RequestFile } from '../../../packages/core/src/contracts/types.js';
+import type { ExecutionBatchResult } from '../../../packages/core/src/contracts/types.js';
 
 interface CliArguments {
   positional: string[];
@@ -90,7 +90,7 @@ async function run(fileName: string, args: CliArguments): Promise<number> {
   const source = JSON.parse(await readFile(path, 'utf8')) as unknown;
   const validation = validateRequestFile(source, basename(path));
   if (!validation.valid) throw new Error(validation.issues.map((i) => `${i.path}: ${i.message}`).join('; '));
-  const file = validation.value as RequestFile;
+  const file = validation.value;
   const snapshot = await loadVariableSnapshot(path, root);
   const controller = new AbortController();
   const interrupt = () => controller.abort();
@@ -103,7 +103,7 @@ async function run(fileName: string, args: CliArguments): Promise<number> {
         allowHttp: args.flags.has('--allow-http'),
         allowPrivateNetworks: args.flags.has('--allow-private-network'),
       },
-      approval: async () => args.flags.has('--allow-protected'),
+      approval: () => Promise.resolve(args.flags.has('--allow-protected')),
       requestPath: path,
       authorizedRoot: root,
     };
@@ -161,7 +161,7 @@ async function runDirectory(dirName: string, args: CliArguments): Promise<number
         allowHttp: args.flags.has('--allow-http'),
         allowPrivateNetworks: args.flags.has('--allow-private-network'),
       },
-      approval: async () => args.flags.has('--allow-protected'),
+      approval: () => Promise.resolve(args.flags.has('--allow-protected')),
       revealSensitiveHeaders: args.flags.has('--show-sensitive'),
       onFile: (event) => process.stderr.write(`HTTP ${event.ordinal}/${event.total}: ${event.file}\n`),
     });

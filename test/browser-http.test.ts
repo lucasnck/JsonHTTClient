@@ -16,7 +16,7 @@ const snapshot = (vars: Record<string, unknown>, protectedFile = false) =>
       ],
     },
   ]);
-test('T08 browser fetch preserves JSON 200 and masks request headers, no filesystem capability', async () => {
+void test('T08 browser fetch preserves JSON 200 and masks request headers, no filesystem capability', async () => {
   const vars = snapshot({ baseUrl: 'https://api.example.com' });
   let sent = '';
   const response = await executeBrowserRequest(
@@ -30,7 +30,7 @@ test('T08 browser fetch preserves JSON 200 and masks request headers, no filesys
     {
       snapshot: vars,
       fetch: async (input, init) => {
-        sent = String(input);
+        sent = input instanceof Request ? input.url : input.toString();
         assert.equal((init?.headers as Headers).get('authorization'), 'Bearer secret');
         assert.equal(init?.redirect, 'error');
         return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -43,7 +43,7 @@ test('T08 browser fetch preserves JSON 200 and masks request headers, no filesys
   assert.equal(response.result.request.headers[0]?.value, 'Bearer [REDACTED]');
   assert.equal(BROWSER_CAPABILITIES.filesystem, false);
 });
-test('T08 browser keeps HTTP 404 body and reports blocked fetch/CORS separately', async () => {
+void test('T08 browser keeps HTTP 404 body and reports blocked fetch/CORS separately', async () => {
   const vars = snapshot({});
   const notFound = await executeBrowserRequest(
     { request: { method: 'GET', url: 'https://api.example.com/missing' } },
@@ -66,7 +66,7 @@ test('T08 browser keeps HTTP 404 body and reports blocked fetch/CORS separately'
   assert.equal(cors.result.response, null);
   assert.equal(cors.diagnostic?.code, 'NETWORK_OR_CORS_BLOCKED');
 });
-test('T08 browser denies untrusted HTTP, blocked protected use before fetch and binary bodies', async () => {
+void test('T08 browser denies untrusted HTTP, blocked protected use before fetch and binary bodies', async () => {
   let calls = 0;
   const vars = snapshot({ url: 'https://api.example.com' }, true);
   const fake = async () => {

@@ -1,11 +1,7 @@
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { validateRequestFile } from '../../../core/src/contracts/validation.js';
-import type {
-  ExecutionBatchResult,
-  ExecutionResult,
-  RequestFile,
-} from '../../../core/src/contracts/types.js';
+import type { ExecutionBatchResult, ExecutionResult } from '../../../core/src/contracts/types.js';
 import { loadVariableSnapshot } from '../variable-files.js';
 import { executeRequestFile } from '../../../sdk-js/src/execution.js';
 import { executeLoop } from '../../../sdk-js/src/loop-execution.js';
@@ -125,7 +121,7 @@ export async function executeRequestDirectory(
         continue;
       }
       const snapshot = await loadVariableSnapshot(path, root);
-      const request = parsed.value as RequestFile;
+      const request = parsed.value;
       const common = { ...options, snapshot };
       if (request.loop) {
         const execution = await executeLoop(request, { ...common, requestPath: path, authorizedRoot: root });

@@ -34,7 +34,7 @@ function content(reply: Record<string, unknown>) {
   const r = reply.result as { content: [{ text: string }]; isError?: boolean };
   return { value: JSON.parse(r.content[0].text) as Record<string, unknown>, isError: r.isError === true };
 }
-test('F03: initialize advertises tools and ping responds with JSON-RPC 2.0', async () => {
+void test('F03: initialize advertises tools and ping responds with JSON-RPC 2.0', async () => {
   const f = await workspace();
   try {
     const mcp = new HttpEngineMcpServer({ root: f.root });
@@ -50,7 +50,7 @@ test('F03: initialize advertises tools and ping responds with JSON-RPC 2.0', asy
     await f.close();
   }
 });
-test('F03: read-only tools list/validate/explain without exposing ordinary secret values', async () => {
+void test('F03: read-only tools list/validate/explain without exposing ordinary secret values', async () => {
   const f = await workspace();
   try {
     const mcp = new HttpEngineMcpServer({ root: f.root });
@@ -73,7 +73,7 @@ test('F03: read-only tools list/validate/explain without exposing ordinary secre
     await f.close();
   }
 });
-test('F03: execution and variable mutations denied by default; tool arguments cannot grant permission', async () => {
+void test('F03: execution and variable mutations denied by default; tool arguments cannot grant permission', async () => {
   const f = await workspace();
   try {
     const mcp = new HttpEngineMcpServer({ root: f.root });
@@ -89,12 +89,16 @@ test('F03: execution and variable mutations denied by default; tool arguments ca
     const outside = content((await mcp.process(call(3, 'request_validate', { file: '../../etc/passwd' })))!);
     assert.equal(outside.isError, true);
     assert.equal(outside.value.code, 'OUTSIDE_ROOT');
-    assert.equal(JSON.parse(await readFile(join(f.root, 'dev.variables.json'), 'utf8')).enabled, true);
+    assert.equal(
+      (JSON.parse(await readFile(join(f.root, 'dev.variables.json'), 'utf8')) as { enabled: boolean })
+        .enabled,
+      true,
+    );
   } finally {
     await f.close();
   }
 });
-test('F03: host-authorized variable activation applies exclusive sibling toggle', async () => {
+void test('F03: host-authorized variable activation applies exclusive sibling toggle', async () => {
   const f = await workspace();
   try {
     const mcp = new HttpEngineMcpServer({ root: f.root, allowWrite: true });
@@ -116,49 +120,58 @@ test('F03: host-authorized variable activation applies exclusive sibling toggle'
     await f.close();
   }
 });
-test('F03: host-authorized HTTP execution returns canonical masked result and Stop aborts in-flight request', async () => {
-  const f = await workspace();
-  let requests = 0;
-  const server = createServer((req, res) => {
-    requests++;
-    if (req.url === '/wait')
-      setTimeout(() => {
-        if (!res.destroyed) res.end('ready');
-      }, 300);
-    else {
-      res.setHeader('content-type', 'application/json');
-      res.end('{"ok":true}');
-    }
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  try {
-    await writeFile(join(f.root, 'dev.variables.json'), JSON.stringify({ enabled: true, baseUrl: url }));
-    await writeFile(join(f.root, 'prod.variables.json'), JSON.stringify({ enabled: false }));
-    const mcp = new HttpEngineMcpServer({
-      root: f.root,
-      allowRun: true,
-      policy: { allowHttp: true, allowPrivateNetworks: true },
+void test(
+  'F03: host-authorized HTTP execution returns canonical masked result and Stop aborts in-flight request',
+  { timeout: 15000 },
+  async () => {
+    const f = await workspace();
+    let requests = 0;
+    let signalWait!: () => void;
+    const waitObserved = new Promise<void>((resolve) => {
+      signalWait = resolve;
     });
-    const result = content((await mcp.process(call(1, 'request_run', { file: 'list.request.json' })))!);
-    assert.equal(result.isError, false);
-    assert.deepEqual(Object.keys(result.value), ['request', 'response', 'timings']);
-    assert.equal((result.value.response as { status: number }).status, 200);
-    await writeFile(f.request, JSON.stringify({ request: { method: 'GET', url: '{{baseUrl}}/wait' } }));
-    const running = mcp.process(call(2, 'request_run', { file: 'list.request.json' }));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const stopped = content((await mcp.process(call(3, 'execution_stop', {})))!);
-    assert.equal(stopped.value.stopped, true);
-    const response = content((await running)!);
-    assert.equal(response.isError, false);
-    assert.equal(response.value.response, null);
-    assert.equal(requests, 2);
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    await f.close();
-  }
-});
-test('F03: stdio process speaks newline-delimited JSON-RPC; no console banner', async () => {
+    const server = createServer((req, res) => {
+      requests++;
+      if (req.url === '/wait') {
+        signalWait();
+        setTimeout(() => {
+          if (!res.destroyed) res.end('ready');
+        }, 3000);
+      } else {
+        res.setHeader('content-type', 'application/json');
+        res.end('{"ok":true}');
+      }
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    try {
+      await writeFile(join(f.root, 'dev.variables.json'), JSON.stringify({ enabled: true, baseUrl: url }));
+      await writeFile(join(f.root, 'prod.variables.json'), JSON.stringify({ enabled: false }));
+      const mcp = new HttpEngineMcpServer({
+        root: f.root,
+        allowRun: true,
+        policy: { allowHttp: true, allowPrivateNetworks: true },
+      });
+      const result = content((await mcp.process(call(1, 'request_run', { file: 'list.request.json' })))!);
+      assert.equal(result.isError, false);
+      assert.deepEqual(Object.keys(result.value), ['request', 'response', 'timings']);
+      assert.equal((result.value.response as { status: number }).status, 200);
+      await writeFile(f.request, JSON.stringify({ request: { method: 'GET', url: '{{baseUrl}}/wait' } }));
+      const running = mcp.process(call(2, 'request_run', { file: 'list.request.json' }));
+      await waitObserved;
+      const stopped = content((await mcp.process(call(3, 'execution_stop', {})))!);
+      assert.equal(stopped.value.stopped, true);
+      const response = content((await running)!);
+      assert.equal(response.isError, false);
+      assert.equal(response.value.response, null);
+      assert.equal(requests, 2);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await f.close();
+    }
+  },
+);
+void test('F03: stdio process speaks newline-delimited JSON-RPC; no console banner', async () => {
   const f = await workspace();
   try {
     const child = spawn(process.execPath, ['dist/apps/mcp-server/src/main.js', '--root', f.root], {
@@ -195,7 +208,7 @@ test('F03: stdio process speaks newline-delimited JSON-RPC; no console banner', 
     await f.close();
   }
 });
-test('F03/T09: MCP host must expressly authorize protected run before any network I/O', async () => {
+void test('F03/T09: MCP host must expressly authorize protected run before any network I/O', async () => {
   const f = await workspace();
   let sent = 0;
   const server = createServer((_req, res) => {
@@ -227,7 +240,7 @@ test('F03/T09: MCP host must expressly authorize protected run before any networ
     await f.close();
   }
 });
-test('F03: import_preview is read-only and cannot execute shell or create files', async () => {
+void test('F03: import_preview is read-only and cannot execute shell or create files', async () => {
   const f = await workspace();
   try {
     const mcp = new HttpEngineMcpServer({ root: f.root });

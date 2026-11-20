@@ -1,0 +1,19 @@
+JsonHTTClient — HOTFIX de testes Windows
+Commit local: 94d57c1 (main; sem push GitHub).
+
+ATENÇÃO: este overlay atualiza somente os 12 arquivos listados. Não contém
+node_modules, package-lock.json, .git nem suas requests/variables. Faça backup
+se editou manualmente algum desses 12 arquivos.
+
+PowerShell na raiz de D:\projects\AiWorkzone\JsonHttpEngineWorkspace:
+  Expand-Archive -Path "$env:USERPROFILE\Downloads\JsonHTTClient-windows-test-fix-94d57c1.zip" -DestinationPath "." -Force
+  npm run format
+  npm run check
+  npm run desktop:doctor
+
+Se o Rust/Cargo ainda não estiver instalado, instale Rustup, reabra o terminal
+e teste cargo --version, rustc --version e npm run desktop:dev.
+
+O check:offline foi validado em Linux com 155/155 testes; o lint completo
+e os testes Windows ainda exigem execução na máquina Windows. Um teste
+de child.kill(SIGINT) será SKIPPED no Windows pois não representa Ctrl+C.

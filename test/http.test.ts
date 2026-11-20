@@ -83,7 +83,7 @@ const vars = (base: string, protectedFile = false) =>
   ]);
 
 // Tests use local-only server; permission for loopback is deliberately explicit.
-test('T09: safe default rejects HTTP, private endpoints and credential URLs', () => {
+void test('T09: safe default rejects HTTP, private endpoints and credential URLs', () => {
   assert.throws(
     () => checkHttpTarget('http://public.example.com'),
     (e: unknown) => e instanceof HttpPolicyError && e.code === 'BLOCKED_SCHEME',
@@ -105,7 +105,7 @@ test('T09: safe default rejects HTTP, private endpoints and credential URLs', ()
   assert.equal(isPrivateHostname('8.8.8.8'), false);
 });
 
-test('T04: real HTTP 200 response has canonical request/response/timings', async () => {
+void test('T04: real HTTP 200 response has canonical request/response/timings', async () => {
   const server = await fixture();
   try {
     const session = await executeRequestFile(
@@ -121,7 +121,7 @@ test('T04: real HTTP 200 response has canonical request/response/timings', async
     await server.close();
   }
 });
-test('T04: HTTP 400 response preserves body, status, headers and redacts Set-Cookie', async () => {
+void test('T04: HTTP 400 response preserves body, status, headers and redacts Set-Cookie', async () => {
   const server = await fixture();
   try {
     const session = await fetchHttpRequest({ method: 'GET', url: `${server.base}/error` }, { policy: local });
@@ -137,7 +137,7 @@ test('T04: HTTP 400 response preserves body, status, headers and redacts Set-Coo
     await server.close();
   }
 });
-test('T04: HTTP 500 status is response not network error', async () => {
+void test('T04: HTTP 500 status is response not network error', async () => {
   const server = await fixture();
   try {
     const session = await fetchHttpRequest({ method: 'GET', url: `${server.base}/fatal` }, { policy: local });
@@ -147,7 +147,7 @@ test('T04: HTTP 500 status is response not network error', async () => {
     await server.close();
   }
 });
-test('T04: Authorization is really sent but masked in default view; reveal is memory only', async () => {
+void test('T04: Authorization is really sent but masked in default view; reveal is memory only', async () => {
   const server = await fixture();
   try {
     const session = await fetchHttpRequest(
@@ -185,7 +185,7 @@ test('T04: Authorization is really sent but masked in default view; reveal is me
     await server.close();
   }
 });
-test('T04: POST JSON sends genuine JSON, form urlencoded body preserves repeated query', async () => {
+void test('T04: POST JSON sends genuine JSON, form urlencoded body preserves repeated query', async () => {
   const server = await fixture();
   try {
     const result = await fetchHttpRequest(
@@ -225,7 +225,7 @@ test('T04: POST JSON sends genuine JSON, form urlencoded body preserves repeated
     await server.close();
   }
 });
-test('T09: protected effective variable requires approved preflight and sends nothing on deny', async () => {
+void test('T09: protected effective variable requires approved preflight and sends nothing on deny', async () => {
   const server = await fixture();
   try {
     const file = { request: { method: 'GET' as const, url: '{{baseUrl}}/ok' } };
@@ -250,7 +250,7 @@ test('T09: protected effective variable requires approved preflight and sends no
     await server.close();
   }
 });
-test('T09: blocked target has no network side effect', async () => {
+void test('T09: blocked target has no network side effect', async () => {
   const server = await fixture();
   try {
     await assert.rejects(fetchHttpRequest({ method: 'GET', url: `${server.base}/ok` }), HttpPolicyError);
@@ -259,7 +259,7 @@ test('T09: blocked target has no network side effect', async () => {
     await server.close();
   }
 });
-test('T04: redirect follows authorized location but refuses redirect to another private host', async () => {
+void test('T04: redirect follows authorized location but refuses redirect to another private host', async () => {
   const server = await fixture();
   try {
     const a = await fetchHttpRequest({ method: 'GET', url: `${server.base}/redirect` }, { policy: local });
@@ -275,7 +275,7 @@ test('T04: redirect follows authorized location but refuses redirect to another 
     await server.close();
   }
 });
-test('T04: response payload limit returns typed error and not truncated fake JSON', async () => {
+void test('T04: response payload limit returns typed error and not truncated fake JSON', async () => {
   const server = await fixture();
   try {
     await assert.rejects(
@@ -289,7 +289,7 @@ test('T04: response payload limit returns typed error and not truncated fake JSO
     await server.close();
   }
 });
-test('T04: network abort results in response:null with diagnostic out of band', async () => {
+void test('T04: network abort results in response:null with diagnostic out of band', async () => {
   const server = await fixture();
   try {
     const ctrl = new AbortController();
@@ -306,7 +306,7 @@ test('T04: network abort results in response:null with diagnostic out of band', 
     await server.close();
   }
 });
-test('T04: timeout results in typed diagnostic and response:null', async () => {
+void test('T04: timeout results in typed diagnostic and response:null', async () => {
   const server = await fixture();
   try {
     const session = await fetchHttpRequest(
@@ -319,7 +319,7 @@ test('T04: timeout results in typed diagnostic and response:null', async () => {
     await server.close();
   }
 });
-test('T04: unsupported binary body fails before sending a request', async () => {
+void test('T04: unsupported binary body fails before sending a request', async () => {
   const server = await fixture();
   try {
     await assert.rejects(

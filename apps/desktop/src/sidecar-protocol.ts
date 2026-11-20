@@ -55,8 +55,11 @@ export interface DesktopProtocolOptions {
   emit: (message: DesktopMessage) => void;
 }
 const MAX_MESSAGE_BYTES = 2 * 1024 * 1024;
-const displayText = (text: string, limit: number) =>
-  text.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, limit);
+// Explicit char-code check avoids a control-character regex; these characters are unsafe in IPC prompts.
+export const sanitizeNativeApprovalDisplayText = (text: string, limit: number) =>
+  Array.from(text, (char) => (char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 ? ' ' : char))
+    .join('')
+    .slice(0, limit);
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const str = (input: unknown, name: string, limit = 8192, allowEmpty = false): string => {
@@ -124,9 +127,11 @@ export async function createDesktopProtocol(options: DesktopProtocolOptions) {
       options.emit({
         event: 'native-approval-request',
         challenge,
-        method: displayText(request.method, 16),
-        origins: origins.map((origin) => displayText(origin, 200)),
-        protectedFiles: request.protectedFiles.map((path) => displayText(basename(path), 100)).slice(0, 20),
+        method: sanitizeNativeApprovalDisplayText(request.method, 16),
+        origins: origins.map((origin) => sanitizeNativeApprovalDisplayText(origin, 200)),
+        protectedFiles: request.protectedFiles
+          .map((path) => sanitizeNativeApprovalDisplayText(basename(path), 100))
+          .slice(0, 20),
         count: Number.isSafeInteger(request.count) ? Math.min(10000, request.count!) : 1,
       });
     });
@@ -150,8 +155,8 @@ export async function createDesktopProtocol(options: DesktopProtocolOptions) {
       options.emit({
         event: 'native-import-approval-request',
         challenge,
-        folder: displayText(relative(root, folder) || '.', 200),
-        files: plan.operations.map((op) => displayText(op.filename, 120)).slice(0, 20),
+        folder: sanitizeNativeApprovalDisplayText(relative(root, folder) || '.', 200),
+        files: plan.operations.map((op) => sanitizeNativeApprovalDisplayText(op.filename, 120)).slice(0, 20),
         count: plan.operations.length,
       });
     });

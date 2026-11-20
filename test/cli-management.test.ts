@@ -15,7 +15,7 @@ async function rootFixture() {
 async function invoke(args: string[]) {
   return exec(process.execPath, [cli, ...args], { encoding: 'utf8' });
 }
-test('F02: CLI oauth save writes selected new variable file without token or activation of sibling', async () => {
+void test('F02: CLI oauth save writes selected new variable file without token or activation of sibling', async () => {
   const f = await rootFixture();
   try {
     await writeFile(
@@ -56,7 +56,7 @@ test('F02: CLI oauth save writes selected new variable file without token or act
     await f.close();
   }
 });
-test('F02: CLI variables activate switches only siblings in same directory', async () => {
+void test('F02: CLI variables activate switches only siblings in same directory', async () => {
   const f = await rootFixture();
   try {
     await writeFile(join(f.dir, 'dev.variables.json'), JSON.stringify({ enabled: true, baseUrl: 'dev' }));
@@ -82,7 +82,7 @@ test('F02: CLI variables activate switches only siblings in same directory', asy
     await f.close();
   }
 });
-test('F02: CLI import curl previews only, then explicitly applies under output dir', async () => {
+void test('F02: CLI import curl previews only, then explicitly applies under output dir', async () => {
   const f = await rootFixture();
   try {
     const input = join(f.root, 'request.txt');
@@ -120,7 +120,7 @@ test('F02: CLI import curl previews only, then explicitly applies under output d
     await f.close();
   }
 });
-test('F02: CLI import openapi JSON previews multiple requests, no files written', async () => {
+void test('F02: CLI import openapi JSON previews multiple requests, no files written', async () => {
   const f = await rootFixture();
   try {
     const file = join(f.root, 'openapi.json');

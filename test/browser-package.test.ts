@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 const exec = promisify(execFile);
-test('T08 browser ESM graph packs standalone without Node-only runtime modules', async () => {
+void test('T08 browser ESM graph packs standalone without Node-only runtime modules', async () => {
   await exec(process.execPath, ['tooling/package-browser.mjs'], { cwd: process.cwd() });
   const base = resolve('artifacts/browser-esm');
   const entry = await readFile(join(base, 'index.mjs'), 'utf8');
@@ -17,7 +17,7 @@ test('T08 browser ESM graph packs standalone without Node-only runtime modules',
   assert.equal(typeof api.executeBrowserRequest, 'function');
   assert.equal(api.BROWSER_CAPABILITIES?.filesystem, false);
   const seen = async (folder: string): Promise<string[]> => {
-    let all: string[] = [];
+    const all: string[] = [];
     for (const f of await readdir(folder, { withFileTypes: true })) {
       if (f.isDirectory()) all.push(...(await seen(join(folder, f.name))));
       if (f.isFile() && f.name.endsWith('.js')) all.push(join(folder, f.name));

@@ -80,7 +80,7 @@ async function fixture() {
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
-test('T06: OAuth injected vault token resolves only after preflight, never enters the variables file', async () => {
+void test('T06: OAuth injected vault token resolves only after preflight, never enters the variables file', async () => {
   const http = await fixture();
   try {
     const { vault } = makeVault({
@@ -112,7 +112,7 @@ test('T06: OAuth injected vault token resolves only after preflight, never enter
     await http.close();
   }
 });
-test('T06/T09: protected approval denial happens before vault access or HTTP', async () => {
+void test('T06/T09: protected approval denial happens before vault access or HTTP', async () => {
   const http = await fixture();
   let lookedUp = 0;
   try {
@@ -137,7 +137,7 @@ test('T06/T09: protected approval denial happens before vault access or HTTP', a
     await http.close();
   }
 });
-test('T06: missing or expired credentials fail closed without outbound HTTP', async () => {
+void test('T06: missing or expired credentials fail closed without outbound HTTP', async () => {
   const http = await fixture();
   try {
     const { vault } = makeVault();
@@ -167,7 +167,7 @@ test('T06: missing or expired credentials fail closed without outbound HTTP', as
     await http.close();
   }
 });
-test('T06: OAuth must not change the URL after destination was approved', async () => {
+void test('T06: OAuth must not change the URL after destination was approved', async () => {
   const http = await fixture();
   try {
     const file: RequestFile = { request: { method: 'GET', url: '{{baseUrl}}/{{OAuthToken}}' } };
@@ -184,7 +184,7 @@ test('T06: OAuth must not change the URL after destination was approved', async 
     await http.close();
   }
 });
-test('T05: loop OAuth materialization happens after aggregate protected approval', async () => {
+void test('T05: loop OAuth materialization happens after aggregate protected approval', async () => {
   const http = await fixture();
   try {
     const file: RequestFile = {
@@ -215,7 +215,7 @@ test('T05: loop OAuth materialization happens after aggregate protected approval
     await http.close();
   }
 });
-test('T06: host-authorized PKCE connect stores credential in host vault for subsequent HTTP execution', async () => {
+void test('T06: host-authorized PKCE connect stores credential in host vault for subsequent HTTP execution', async () => {
   const { connectOAuthSession } = await import('../packages/runtime-node/src/oauth/connect.js');
   const http = await fixture();
   const { vault, values } = makeVault();
@@ -251,7 +251,8 @@ test('T06: host-authorized PKCE connect stores credential in host vault for subs
       },
       lookupHost: async () => ['93.184.216.34'],
       fetcher: async (_url, req) => {
-        const form = new URLSearchParams(String(req?.body));
+        assert.equal(typeof req?.body, 'string');
+        const form = new URLSearchParams(req?.body as string);
         assert.equal(form.get('code'), 'mock-code');
         return new Response(
           JSON.stringify({ access_token: 'CONNECTED_TOKEN', token_type: 'Bearer', expires_in: 3600 }),
@@ -278,7 +279,7 @@ test('T06: host-authorized PKCE connect stores credential in host vault for subs
     await http.close();
   }
 });
-test('T06: vault session keys differ for different source files, providers or scopes', () => {
+void test('T06: vault session keys differ for different source files, providers or scopes', () => {
   const base = {
     filePath: '/root/dev.variables.json',
     name: 'OAuthToken',

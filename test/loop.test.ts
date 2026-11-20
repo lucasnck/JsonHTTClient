@@ -53,7 +53,7 @@ const requestFile = (items: Array<Record<string, unknown>>, onError: 'stop' | 'c
   loop: { source: { kind: 'inline' as const, items }, mode: 'sequential' as const, onError },
 });
 
-test('T05: 2-item loop returns canonical batch and item result shapes', async () => {
+void test('T05: 2-item loop returns canonical batch and item result shapes', async () => {
   const s = await fixture();
   try {
     const progress: string[] = [];
@@ -81,7 +81,7 @@ test('T05: 2-item loop returns canonical batch and item result shapes', async ()
     await s.close();
   }
 });
-test('T05: HTTP 404 counts failed, body remains original and next request continues', async () => {
+void test('T05: HTTP 404 counts failed, body remains original and next request continues', async () => {
   const s = await fixture();
   try {
     const run = await executeLoop(
@@ -106,7 +106,7 @@ test('T05: HTTP 404 counts failed, body remains original and next request contin
     await s.close();
   }
 });
-test('T05: stop on error skips remaining items without fabricated results', async () => {
+void test('T05: stop on error skips remaining items without fabricated results', async () => {
   const s = await fixture();
   try {
     const run = await executeLoop(
@@ -121,7 +121,7 @@ test('T05: stop on error skips remaining items without fabricated results', asyn
     await s.close();
   }
 });
-test('T05: AbortSignal after item 2 cancels pending items with truthful summary', async () => {
+void test('T05: AbortSignal after item 2 cancels pending items with truthful summary', async () => {
   const s = await fixture();
   try {
     const ctl = new AbortController();
@@ -147,7 +147,7 @@ test('T05: AbortSignal after item 2 cancels pending items with truthful summary'
     await s.close();
   }
 });
-test('T05: empty dataset generates a successful empty batch', async () => {
+void test('T05: empty dataset generates a successful empty batch', async () => {
   const s = await fixture();
   try {
     const run = await executeLoop(requestFile([]), { snapshot: snapshot(s.base), policy });
@@ -165,7 +165,7 @@ test('T05: empty dataset generates a successful empty batch', async () => {
     await s.close();
   }
 });
-test('T09: preflight rejects missing variable before ANY request is issued', async () => {
+void test('T09: preflight rejects missing variable before ANY request is issued', async () => {
   const s = await fixture();
   try {
     await assert.rejects(
@@ -176,7 +176,7 @@ test('T09: preflight rejects missing variable before ANY request is issued', asy
     await s.close();
   }
 });
-test('T09: protected loop obtains ONE approval before HTTP with count and destinations', async () => {
+void test('T09: protected loop obtains ONE approval before HTTP with count and destinations', async () => {
   const s = await fixture();
   try {
     let approvalCount = 0,
@@ -197,7 +197,7 @@ test('T09: protected loop obtains ONE approval before HTTP with count and destin
     await s.close();
   }
 });
-test('T09: protected loop DENIED before sending ANY HTTP', async () => {
+void test('T09: protected loop DENIED before sending ANY HTTP', async () => {
   const s = await fixture();
   try {
     await assert.rejects(
@@ -212,7 +212,7 @@ test('T09: protected loop DENIED before sending ANY HTTP', async () => {
     await s.close();
   }
 });
-test('T05: file-backed data uses authorized relative JSON dataset', async () => {
+void test('T05: file-backed data uses authorized relative JSON dataset', async () => {
   const s = await fixture();
   const root = await mkdtemp(join(tmpdir(), 'http-loop-'));
   try {
@@ -237,7 +237,7 @@ test('T05: file-backed data uses authorized relative JSON dataset', async () => 
     await s.close();
   }
 });
-test('T05: dataset must remain inside root and cannot be a symlink', async () => {
+void test('T05: dataset must remain inside root and cannot be a symlink', async (t) => {
   const s = await fixture();
   const root = await mkdtemp(join(tmpdir(), 'http-loop-'));
   const other = await mkdtemp(join(tmpdir(), 'http-loop-else-'));
@@ -247,7 +247,14 @@ test('T05: dataset must remain inside root and cannot be a symlink', async () =>
     const req = join(dir, 'list.request.json');
     await writeFile(req, '{}');
     await writeFile(join(other, 'items.json'), '[]');
-    await symlink(join(other, 'items.json'), join(dir, 'alias.json'));
+    let symlinkCreated = false;
+    try {
+      await symlink(join(other, 'items.json'), join(dir, 'alias.json'), 'file');
+      symlinkCreated = true;
+    } catch (error) {
+      if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EPERM') throw error;
+      t.diagnostic('File symlinks require Windows Developer Mode or elevated privileges');
+    }
     const file = (path: string) => ({
       request: { method: 'GET', url: '{{baseUrl}}/{{endpoint}}' },
       loop: { source: { kind: 'file' as const, path } },
@@ -261,15 +268,16 @@ test('T05: dataset must remain inside root and cannot be a symlink', async () =>
       }),
       LoopSourceError,
     );
-    await assert.rejects(
-      executeLoop(file('alias.json'), {
-        snapshot: snapshot(s.base),
-        policy,
-        requestPath: req,
-        authorizedRoot: root,
-      }),
-      (e: unknown) => e instanceof LoopSourceError && e.code === 'UNSAFE_DATASET',
-    );
+    if (symlinkCreated)
+      await assert.rejects(
+        executeLoop(file('alias.json'), {
+          snapshot: snapshot(s.base),
+          policy,
+          requestPath: req,
+          authorizedRoot: root,
+        }),
+        (e: unknown) => e instanceof LoopSourceError && e.code === 'UNSAFE_DATASET',
+      );
     assert.equal(s.count(), 0);
   } finally {
     await rm(root, { recursive: true, force: true });

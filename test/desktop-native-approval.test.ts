@@ -7,7 +7,10 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { createDesktopProtocol } from '../apps/desktop/src/sidecar-protocol.js';
+import {
+  createDesktopProtocol,
+  sanitizeNativeApprovalDisplayText,
+} from '../apps/desktop/src/sidecar-protocol.js';
 import type { DesktopMessage } from '../apps/desktop/src/sidecar-protocol.js';
 
 async function workspace() {
@@ -75,7 +78,7 @@ async function createProtectedRequest(root: string, url: string) {
 }
 const localPolicy = { allowHttp: true, allowPrivateNetworks: true };
 
-test('F10 native challenge reveals origins, not tokens; approval is one-use and precedes HTTP', async () => {
+void test('F10 native challenge reveals origins, not tokens; approval is one-use and precedes HTTP', async () => {
   const w = await workspace();
   const server = await listener();
   const events: DesktopMessage[] = [];
@@ -117,7 +120,7 @@ test('F10 native challenge reveals origins, not tokens; approval is one-use and 
   }
 });
 
-test('F10 default-deny, explicit refusal, timeout and malformed response never send HTTP', async () => {
+void test('F10 default-deny, explicit refusal, timeout and malformed response never send HTTP', async () => {
   const w = await workspace();
   const server = await listener();
   try {
@@ -159,7 +162,7 @@ test('F10 default-deny, explicit refusal, timeout and malformed response never s
   }
 });
 
-test('F10 Stop cancels a pending native approval and ignores a late Yes', async () => {
+void test('F10 Stop cancels a pending native approval and ignores a late Yes', async () => {
   const w = await workspace();
   const server = await listener();
   const out: DesktopMessage[] = [];
@@ -189,7 +192,7 @@ test('F10 Stop cancels a pending native approval and ignores a late Yes', async 
   }
 });
 
-test('F10 sidecar sends protected challenge over private stdio and accepts a host reply', async () => {
+void test('F10 sidecar sends protected challenge over private stdio and accepts a host reply', async () => {
   const w = await workspace();
   const server = await listener();
   const child = spawn(
@@ -207,18 +210,22 @@ test('F10 sidecar sends protected challenge over private stdio and accepts a hos
     { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'] },
   );
   const packets: Record<string, unknown>[] = [];
-  const lines = createInterface({ input: child.stdout! });
+  const lines = createInterface({ input: child.stdout });
   lines.on('line', (line) => {
     try {
       packets.push(JSON.parse(line) as Record<string, unknown>);
-    } catch {}
+    } catch {
+      /* Ignore non-JSON diagnostic lines from the child process. */
+    }
   });
   try {
     const path = await createProtectedRequest(w.root, server.url);
     const send = (id: string, op: string, args: Record<string, unknown> = {}) =>
-      child.stdin!.write(JSON.stringify({ id, op, args }) + '\n');
+      child.stdin.write(JSON.stringify({ id, op, args }) + '\n');
     send('open', 'open', { path });
-    await waitFor(() => packets.some((x) => x.id === 'open'));
+    // Starting a Node child under the full Windows suite can exceed 800 ms.
+    // Keep the shorter waits for protocol events after startup.
+    await waitFor(() => packets.some((x) => x.id === 'open'), 10000);
     const open = packets.find((x) => x.id === 'open')!;
     const tab = (open.result as { activeTabId: string }).activeTabId;
     send('run', 'run', { tabId: tab, approved: true });
@@ -228,7 +235,7 @@ test('F10 sidecar sends protected challenge over private stdio and accepts a hos
     const challenge = request.challenge;
     assert.equal(typeof challenge, 'string');
     // Only Rust can write this reserved response to stdin; desktop_send rejects it.
-    child.stdin!.write(JSON.stringify({ op: '__nativeApprovalResponse', challenge, approved: true }) + '\n');
+    child.stdin.write(JSON.stringify({ op: '__nativeApprovalResponse', challenge, approved: true }) + '\n');
     await waitFor(() => packets.some((x) => x.id === 'run'));
     assert.equal(packets.find((x) => x.id === 'run')!.ok, true);
     assert.equal(server.hits, 1);
@@ -239,7 +246,7 @@ test('F10 sidecar sends protected challenge over private stdio and accepts a hos
   }
 });
 
-test('F08 native import confirmation creates files only after OS-host approval', async () => {
+void test('F08 native import confirmation creates files only after OS-host approval', async () => {
   const w = await workspace();
   const out: DesktopMessage[] = [];
   try {
@@ -275,12 +282,12 @@ test('F08 native import confirmation creates files only after OS-host approval',
     assert.equal(challenge.count, 1);
     assert.equal(challenge.files[0], preview.plan.operations[0]!.filename);
     assert.doesNotMatch(JSON.stringify(challenge), /super-secret|hidden|Bearer|https:\/\//);
-    await assert.rejects(readFile(join(w.root, challenge.files[0]!), 'utf8'));
+    await assert.rejects(readFile(join(w.root, challenge.files[0]), 'utf8'));
     assert.equal(p.resolveNativeApproval(challenge.challenge, true), true);
     await pending;
     assert.equal((response(out.at(-1)!) as Extract<DesktopMessage, { ok: true }>).ok, true);
     assert.equal(
-      (await readFile(join(w.root, challenge.files[0]!), 'utf8')).includes('authorizationToken'),
+      (await readFile(join(w.root, challenge.files[0]), 'utf8')).includes('authorizationToken'),
       true,
     );
     assert.equal(p.resolveNativeApproval(challenge.challenge, true), false, 'No replay');
@@ -294,7 +301,7 @@ test('F08 native import confirmation creates files only after OS-host approval',
   }
 });
 
-test('F08 rejected or expired import challenge cannot create files or reuse preview', async () => {
+void test('F08 rejected or expired import challenge cannot create files or reuse preview', async () => {
   const w = await workspace();
   try {
     for (const decision of ['deny', 'timeout'] as const) {
@@ -344,7 +351,7 @@ test('F08 rejected or expired import challenge cannot create files or reuse prev
   }
 });
 
-test('F10/F08 Tauri Rust host intercepts native challenge and never routes it to webview send allowlist', async () => {
+void test('F10/F08 Tauri Rust host intercepts native challenge and never routes it to webview send allowlist', async () => {
   const main = await readFile('apps/desktop/src-tauri/src/main.rs', 'utf8');
   assert.match(main, /native-approval-request/);
   assert.match(main, /native-import-approval-request/);
@@ -355,7 +362,7 @@ test('F10/F08 Tauri Rust host intercepts native challenge and never routes it to
   assert.match(main, /continue;\s*}\s*let _=handle.emit\("desktop-message"/);
 });
 
-test('F10 protected foreach shows entire batch and blocks every HTTP call until approval', async () => {
+void test('F10 protected foreach shows entire batch and blocks every HTTP call until approval', async () => {
   const w = await workspace();
   const server = await listener();
   const out: DesktopMessage[] = [];
@@ -393,16 +400,18 @@ test('F10 protected foreach shows entire batch and blocks every HTTP call until 
   }
 });
 
-test('F10 native dialog display strips control characters from protected filenames', async () => {
+void test('F10 native dialog display strips control characters from protected filenames', async () => {
   const w = await workspace();
   const server = await listener();
   const out: DesktopMessage[] = [];
   try {
     const path = await createProtectedRequest(w.root, server.url);
-    const name = 'dev\nApprove anyway.variables.json';
-    const original = await readFile(join(w.root, 'dev.variables.json'), 'utf8');
-    await rm(join(w.root, 'dev.variables.json'));
-    await writeFile(join(w.root, name), original);
+    // A newline is illegal in Windows filenames; exercise sanitization as
+    // pure data while retaining an actual protected-file approval round-trip.
+    assert.equal(
+      sanitizeNativeApprovalDisplayText('dev\nApprove anyway.variables.json', 100),
+      'dev Approve anyway.variables.json',
+    );
     const p = await createDesktopProtocol({
       root: w.root,
       appData: w.appData,
@@ -417,6 +426,7 @@ test('F10 native dialog display strips control characters from protected filenam
     const pending = p.dispatch({ id: 'run', op: 'run', args: { tabId: tab.activeTabId } });
     await waitFor(() => out.some(approvalEvent));
     const event = out.find(approvalEvent)!;
+    assert.deepEqual(event.protectedFiles, ['dev.variables.json']);
     assert.equal(event.protectedFiles[0]!.includes('\n'), false);
     p.resolveNativeApproval(event.challenge, false);
     await pending;

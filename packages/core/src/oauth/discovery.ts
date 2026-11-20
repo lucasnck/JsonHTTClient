@@ -86,8 +86,8 @@ export function parseOAuthMetadata(issuer: string, metadataUrl: string, data: un
     metadataUrl,
     authorizationEndpoint: data.authorization_endpoint as string,
     tokenEndpoint: data.token_endpoint as string,
-    scopesSupported: (data.scopes_supported as string[] | undefined) ?? [],
-    supportedGrantTypes: (data.grant_types_supported as string[] | undefined) ?? [],
+    scopesSupported: data.scopes_supported ?? [],
+    supportedGrantTypes: data.grant_types_supported ?? [],
     suggestedDefinition: { type: 'oauth2', issuer: normalized, flow: 'authorization_code_pkce' },
     requires: ['clientId', 'scopes', 'redirect'] as const,
   };

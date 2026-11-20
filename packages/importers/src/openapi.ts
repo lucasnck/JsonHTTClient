@@ -5,7 +5,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const methods = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const;
 /** JSON OpenAPI 3.x subset. YAML and remote $ref require a future explicit parser/authorization. */
-export function importOpenApi(source: string | unknown): ImportPlan {
+export function importOpenApi(source: unknown): ImportPlan {
   let parsed: unknown = source;
   if (typeof source === 'string') {
     try {
@@ -26,7 +26,7 @@ export function importOpenApi(source: string | unknown): ImportPlan {
     throw new ImportError('INVALID_OPENAPI', 'Esperado documento OpenAPI 3.x com paths');
   const warnings: ImportWarning[] = [],
     operations: ImportedRequest[] = [];
-  const rootServers = Array.isArray(parsed.servers) ? parsed.servers : [];
+  const rootServers: unknown[] = Array.isArray(parsed.servers) ? parsed.servers : [];
   const defaultServer = rootServers[0];
   const base = isRecord(defaultServer) && typeof defaultServer.url === 'string' ? defaultServer.url : '';
   if (!base)
@@ -57,10 +57,9 @@ export function importOpenApi(source: string | unknown): ImportPlan {
           : prefix;
       const url = server.replace(/\/$/, '') + path.replace(/\{([A-Za-z][A-Za-z0-9_-]*)\}/g, '{{$1}}');
       const req: HttpRequestDefinition = { method: method.toUpperCase(), url };
-      const parameters = [
-        ...(Array.isArray(def.parameters) ? def.parameters : []),
-        ...(Array.isArray(op.parameters) ? op.parameters : []),
-      ];
+      const pathParameters: unknown[] = Array.isArray(def.parameters) ? def.parameters : [];
+      const operationParameters: unknown[] = Array.isArray(op.parameters) ? op.parameters : [];
+      const parameters = [...pathParameters, ...operationParameters];
       const query: NameValue[] = [];
       for (const p of parameters) {
         if (!isRecord(p)) {

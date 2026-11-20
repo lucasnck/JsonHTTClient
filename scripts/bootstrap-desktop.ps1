@@ -21,8 +21,17 @@ function Has-Command([string]$Name) {
 }
 function Node-IsReady {
   if (-not (Has-Command 'node')) { return $false }
-  $version = (& node -p 'Number(process.versions.node.split(".")[0])' 2>$null)
-  return ([int]$version -ge 22)
+  try {
+    # Use --version, not node -p with embedded JS quotes: Windows PowerShell 5.1
+    # can alter the double quotes passed to native processes and break the JS.
+    $versionOutput = & node --version 2>$null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $version = ([string]($versionOutput | Select-Object -First 1)).Trim()
+    if ($version -notmatch '^v?(?<major>\d+)\.\d+\.\d+(?:[-+].*)?$') { return $false }
+    return ([int]$Matches['major'] -ge 22)
+  } catch {
+    return $false
+  }
 }
 function Has-VCBuildTools {
   $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'

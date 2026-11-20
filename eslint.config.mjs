@@ -4,7 +4,14 @@ import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/*.d.ts'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/*.d.ts',
+      'artifacts/**',
+      '**/src-tauri/target/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -24,6 +31,14 @@ export default tseslint.config(
   {
     files: ['**/*.{js,mjs,cjs}'],
     extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly' },
+    },
+  },
+  {
+    files: ['test/**/*.ts'],
+    // In-memory async port fakes intentionally return immediately.
+    rules: { '@typescript-eslint/require-await': 'off' },
   },
   prettierConfig,
 );

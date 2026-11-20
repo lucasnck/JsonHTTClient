@@ -78,7 +78,7 @@ function validateLoop(v: unknown, out: ValidationIssue[]) {
   allowed(v, ['source', 'mode', 'onError', 'maxItems'], '/loop', out);
   if (v.mode !== undefined && v.mode !== 'sequential')
     issue(out, '/loop/mode', 'Somente sequential suportado');
-  if (v.onError !== undefined && !['stop', 'continue'].includes(String(v.onError)))
+  if (v.onError !== undefined && v.onError !== 'stop' && v.onError !== 'continue')
     issue(out, '/loop/onError', 'Valor inválido');
   if (v.maxItems !== undefined && (!isInt(v.maxItems) || Number(v.maxItems) < 1))
     issue(out, '/loop/maxItems', 'Inteiro positivo obrigatório');

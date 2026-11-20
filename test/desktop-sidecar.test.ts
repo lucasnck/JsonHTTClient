@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createDesktopProtocol } from '../apps/desktop/src/sidecar-protocol.js';
+import type { DesktopTab } from '../apps/desktop/src/tab-sessions.js';
+import type { ImportPlan } from '../packages/importers/src/import-plan.js';
 import type { DesktopMessage } from '../apps/desktop/src/sidecar-protocol.js';
 
 const makeWorkspace = async () => {
@@ -80,12 +82,28 @@ function startClient(root: string, appData: string, flags: string[] = []) {
     ),
   );
 }
-function ok(message: DesktopMessage): any {
+type State = { tabs: readonly DesktopTab[]; activeTabId: string | null };
+type Preview = { planId: string; plan: ImportPlan };
+function ok<T = State>(message: DesktopMessage | undefined): T {
+  assert.ok(message);
   assert.equal('ok' in message && message.ok, true, JSON.stringify(message));
-  return (message as Extract<DesktopMessage, { ok: true }>).result;
+  assert.ok('ok' in message && message.ok);
+  return message.result as T;
 }
 
-test('F06 sidecar lists files, runs via shared engine, restores without rerunning and saves response', async () => {
+function reply(messages: DesktopMessage[]) {
+  const message = messages.at(-1);
+  assert.ok(message && 'ok' in message);
+  return message;
+}
+function failure(messages: DesktopMessage[]) {
+  const message = reply(messages);
+  assert.equal(message.ok, false);
+  assert.ok(!message.ok);
+  return message.error.code;
+}
+
+void test('F06 sidecar lists files, runs via shared engine, restores without rerunning and saves response', async () => {
   const w = await makeWorkspace();
   let count = 0;
   const server = createServer((_req, res) => {
@@ -106,7 +124,9 @@ test('F06 sidecar lists files, runs via shared engine, restores without rerunnin
         },
       }),
     );
-    const list = ok(await client.send('list', { folder: join(w.root, 'examples') }));
+    const list = ok<{ items: { name: string }[] }>(
+      await client.send('list', { folder: join(w.root, 'examples') }),
+    );
     assert.deepEqual(
       list.items.map((i: { name: string }) => i.name),
       ['hello.request.json'],
@@ -116,15 +136,15 @@ test('F06 sidecar lists files, runs via shared engine, restores without rerunnin
     const tabId = first.activeTabId;
     const after = ok(await client.send('run', { tabId }));
     assert.equal(after.tabs.length, 2);
-    const json = after.tabs[1].content as string;
+    const json = after.tabs[1]!.content;
     assert.match(json, /'status':?\s*200|"status":\s*200/);
     assert.match(json, /\[REDACTED\]/);
     assert.doesNotMatch(json, /test-secret/);
     assert.equal(count, 1);
-    await client.send('edit', { tabId: after.tabs[1].id, content: '{ edited by user }' });
-    await client.send('saveAs', { tabId: after.tabs[1].id, path: join(w.root, 'examples', 'output.json') });
+    await client.send('edit', { tabId: after.tabs[1]!.id, content: '{ edited by user }' });
+    await client.send('saveAs', { tabId: after.tabs[1]!.id, path: join(w.root, 'examples', 'output.json') });
     assert.equal(await readFile(join(w.root, 'examples', 'output.json'), 'utf8'), '{ edited by user }');
-    const closed = ok(await client.send('close', { tabId: after.tabs[1].id }));
+    const closed = ok(await client.send('close', { tabId: after.tabs[1]!.id }));
     assert.equal(closed.tabs.length, 1);
     client.close();
     await new Promise<void>((resolve) => client.child.once('exit', () => resolve()));
@@ -132,7 +152,7 @@ test('F06 sidecar lists files, runs via shared engine, restores without rerunnin
     try {
       const snapshot = ok(await restored.send('restore'));
       assert.equal(snapshot.tabs.length, 1);
-      assert.equal(snapshot.tabs[0].id, tabId);
+      assert.equal(snapshot.tabs[0]!.id, tabId);
       assert.equal(count, 1, 'Restoring a request must not execute HTTP');
     } finally {
       restored.child.kill();
@@ -144,7 +164,7 @@ test('F06 sidecar lists files, runs via shared engine, restores without rerunnin
   }
 });
 
-test('F06 sidecar confines paths and denies protected requests and arbitrary operations', async () => {
+void test('F06 sidecar confines paths and denies protected requests and arbitrary operations', async () => {
   const w = await makeWorkspace();
   const messages: DesktopMessage[] = [];
   try {
@@ -161,25 +181,25 @@ test('F06 sidecar confines paths and denies protected requests and arbitrary ope
     const request = join(w.root, 'test.request.json');
     await writeFile(request, JSON.stringify({ request: { method: 'GET', url: '{{baseUrl}}' } }));
     await p.dispatch({ id: '1', op: 'open', args: { path: request } });
-    const id = (messages.at(-1) as any).result.activeTabId;
+    const id = ok(messages.at(-1)).activeTabId;
     await p.dispatch({ id: '2', op: 'run', args: { tabId: id, approval: true } });
-    assert.equal((messages.at(-1) as any).ok, false, 'webview cannot approve protected files');
+    assert.equal(reply(messages).ok, false, 'webview cannot approve protected files');
     await p.dispatch({ id: '3', op: 'open', args: { path: '/etc/passwd' } });
-    assert.equal((messages.at(-1) as any).ok, false);
+    assert.equal(reply(messages).ok, false);
     await p.dispatch({ id: '4', op: 'executeShell', args: { command: 'echo untrusted' } });
-    assert.equal((messages.at(-1) as any).error.code, 'UNKNOWN_OPERATION');
+    assert.equal(failure(messages), 'UNKNOWN_OPERATION');
     await p.dispatch({
       id: '5',
       op: 'importPreview',
       args: { format: 'curl', text: 'curl https://example.com' },
     });
-    const preview = (messages.at(-1) as any).result;
+    const preview = ok<Preview>(messages.at(-1));
     await p.dispatch({
       id: '6',
       op: 'importApply',
       args: { planId: preview.planId, folder: w.root, confirmed: true },
     });
-    assert.equal((messages.at(-1) as any).error.code, 'IMPORT_APPLY_NOT_AUTHORIZED');
+    assert.equal(failure(messages), 'IMPORT_APPLY_NOT_AUTHORIZED');
     assert.equal(
       (await readdir(w.root)).some((x) => x.endsWith('.request.json') && x !== 'test.request.json'),
       false,
@@ -189,7 +209,7 @@ test('F06 sidecar confines paths and denies protected requests and arbitrary ope
   }
 });
 
-test('F06 import plans are single-use, require host authorization and do not overwrite', async () => {
+void test('F06 import plans are single-use, require host authorization and do not overwrite', async () => {
   const w = await makeWorkspace();
   const messages: DesktopMessage[] = [];
   try {
@@ -204,21 +224,21 @@ test('F06 import plans are single-use, require host authorization and do not ove
       op: 'importPreview',
       args: { format: 'curl', text: 'curl -H "Authorization: Bearer raw-token" https://example.com/hello' },
     });
-    const preview = (messages.at(-1) as any).result;
+    const preview = ok<Preview>(messages.at(-1));
     assert.equal(preview.plan.operations.length, 1);
     assert.doesNotMatch(JSON.stringify(preview.plan), /raw-token/);
     await p.dispatch({ id: '2', op: 'importApply', args: { planId: preview.planId, folder: w.root } });
-    assert.equal((messages.at(-1) as any).ok, true);
-    const file = (messages.at(-1) as any).result.files[0] as string;
+    assert.equal(reply(messages).ok, true);
+    const file = ok<{ files: string[] }>(messages.at(-1)).files[0]!;
     assert.match(await readFile(file, 'utf8'), /authorizationToken/);
     await p.dispatch({ id: '3', op: 'importApply', args: { planId: preview.planId, folder: w.root } });
-    assert.equal((messages.at(-1) as any).error.code, 'PREVIEW_REQUIRED');
+    assert.equal(failure(messages), 'PREVIEW_REQUIRED');
   } finally {
     await w.cleanup();
   }
 });
 
-test('F06 sidecar supports concurrent Stop while a request is in flight', async () => {
+void test('F06 sidecar supports concurrent Stop while a request is in flight', async () => {
   const w = await makeWorkspace();
   let hits = 0;
   const server = createServer((_req, res) => {
@@ -241,7 +261,7 @@ test('F06 sidecar supports concurrent Stop while a request is in flight', async 
     const run = client.send('run', { tabId: tab });
     // The JSON line protocol does not block on run, allowing Stop concurrently.
     const stop = await client.send('stop', { tabId: tab });
-    assert.equal(ok(stop).stopped, true);
+    assert.equal(ok<{ stopped: boolean }>(stop).stopped, true);
     const final = await run;
     assert.equal('ok' in final && final.ok, false);
     const state = ok(await client.send('state'));
@@ -257,7 +277,7 @@ test('F06 sidecar supports concurrent Stop while a request is in flight', async 
   }
 });
 
-test('F06 app-data inside workspace is rejected for session snapshots', async () => {
+void test('F06 app-data inside workspace is rejected for session snapshots', async () => {
   const w = await makeWorkspace();
   try {
     await assert.rejects(

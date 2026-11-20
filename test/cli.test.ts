@@ -84,7 +84,7 @@ async function cliCall(args: string[]) {
 }
 const allows = ['--allow-http', '--allow-private-network'];
 
-test('F01: CLI list shows real requests and variable filenames, but no OAuth tokens', async () => {
+void test('F01: CLI list shows real requests and variable filenames, but no OAuth tokens', async () => {
   const f = await fixture();
   try {
     const { stdout } = await cliCall(['list', f.dir]);
@@ -104,7 +104,7 @@ test('F01: CLI list shows real requests and variable filenames, but no OAuth tok
     await f.close();
   }
 });
-test('F01: CLI explain uses same effective D35 precedence as engine', async () => {
+void test('F01: CLI explain uses same effective D35 precedence as engine', async () => {
   const f = await fixture();
   try {
     const { stdout } = await cliCall([
@@ -124,7 +124,7 @@ test('F01: CLI explain uses same effective D35 precedence as engine', async () =
     await f.close();
   }
 });
-test('F01: CLI run emits canonical parseable JSON with masked Authorization by default', async () => {
+void test('F01: CLI run emits canonical parseable JSON with masked Authorization by default', async () => {
   const f = await fixture();
   try {
     const { stdout } = await cliCall(['run', join(f.dir, 'one.request.json'), '--root', f.root, ...allows]);
@@ -140,7 +140,7 @@ test('F01: CLI run emits canonical parseable JSON with masked Authorization by d
     await f.close();
   }
 });
-test('F01: CLI allows original headers ONLY with explicit --show-sensitive', async () => {
+void test('F01: CLI allows original headers ONLY with explicit --show-sensitive', async () => {
   const f = await fixture();
   try {
     const { stdout } = await cliCall([
@@ -157,7 +157,7 @@ test('F01: CLI allows original headers ONLY with explicit --show-sensitive', asy
     await f.close();
   }
 });
-test('F01: CLI loop outputs canonical batch and progress on stderr', async () => {
+void test('F01: CLI loop outputs canonical batch and progress on stderr', async () => {
   const f = await fixture();
   try {
     const { stdout, stderr } = await cliCall([
@@ -176,7 +176,7 @@ test('F01: CLI loop outputs canonical batch and progress on stderr', async () =>
     await f.close();
   }
 });
-test('F01: protected variables deny CLI execution without --allow-protected', async () => {
+void test('F01: protected variables deny CLI execution without --allow-protected', async () => {
   const f = await fixture(true);
   try {
     await assert.rejects(cliCall(['run', join(f.dir, 'one.request.json'), '--root', f.root, ...allows]));
@@ -196,43 +196,52 @@ test('F01: protected variables deny CLI execution without --allow-protected', as
   }
 });
 
-test('F01: CLI SIGINT performs graceful loop Stop without starting the third item', async () => {
-  const f = await fixture();
-  try {
-    const output = await new Promise<{ stdout: string; stderr: string; code: number | null }>(
-      (resolve, reject) => {
-        const child = spawn(
-          process.execPath,
-          [cli, 'run', join(f.dir, 'slow.request.json'), '--root', f.root, ...allows],
-          { stdio: ['ignore', 'pipe', 'pipe'] },
-        );
-        let stdout = '',
-          stderr = '',
-          sent = false;
-        child.stdout.setEncoding('utf8');
-        child.stderr.setEncoding('utf8');
-        child.stdout.on('data', (data: string) => {
-          stdout += data;
-        });
-        child.stderr.on('data', (data: string) => {
-          stderr += data;
-          if (!sent && stderr.includes('HTTP 2/6')) {
-            sent = true;
-            child.kill('SIGINT');
-          }
-        });
-        child.on('error', reject);
-        child.on('close', (code) => resolve({ stdout, stderr, code }));
-      },
-    );
-    const value = JSON.parse(output.stdout) as {
-      summary: { status: string; executed: number; skipped: number };
-    };
-    assert.equal(value.summary.status, 'cancelled');
-    assert.equal(value.summary.executed, 2);
-    assert.equal(value.summary.skipped, 4);
-    assert.equal(f.hits(), 2);
-  } finally {
-    await f.close();
-  }
-});
+void test(
+  'F01: CLI SIGINT performs graceful loop Stop without starting the third item',
+  {
+    // Windows child.kill('SIGINT') forcibly terminates subprocesses rather than
+    // delivering an interactive console Ctrl+C to Node; AbortSignal/Stop is
+    // exercised independently by the SDK and desktop/MCP tests on Windows.
+    skip: process.platform === 'win32' ? 'Windows subprocess SIGINT cannot emulate console Ctrl+C' : false,
+  },
+  async () => {
+    const f = await fixture();
+    try {
+      const output = await new Promise<{ stdout: string; stderr: string; code: number | null }>(
+        (resolve, reject) => {
+          const child = spawn(
+            process.execPath,
+            [cli, 'run', join(f.dir, 'slow.request.json'), '--root', f.root, ...allows],
+            { stdio: ['ignore', 'pipe', 'pipe'] },
+          );
+          let stdout = '',
+            stderr = '',
+            sent = false;
+          child.stdout.setEncoding('utf8');
+          child.stderr.setEncoding('utf8');
+          child.stdout.on('data', (data: string) => {
+            stdout += data;
+          });
+          child.stderr.on('data', (data: string) => {
+            stderr += data;
+            if (!sent && stderr.includes('HTTP 2/6')) {
+              sent = true;
+              child.kill('SIGINT');
+            }
+          });
+          child.on('error', reject);
+          child.on('close', (code) => resolve({ stdout, stderr, code }));
+        },
+      );
+      const value = JSON.parse(output.stdout) as {
+        summary: { status: string; executed: number; skipped: number };
+      };
+      assert.equal(value.summary.status, 'cancelled');
+      assert.equal(value.summary.executed, 2);
+      assert.equal(value.summary.skipped, 4);
+      assert.equal(f.hits(), 2);
+    } finally {
+      await f.close();
+    }
+  },
+);

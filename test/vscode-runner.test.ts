@@ -39,7 +39,7 @@ async function fixture(protectedFile = false) {
 }
 const policy = { allowHttp: true, allowPrivateNetworks: true };
 
-test('F04 native adapter uses unsaved editor content and produces editable canonical JSON', async () => {
+void test('F04 native adapter uses unsaved editor content and produces editable canonical JSON', async () => {
   const f = await fixture();
   try {
     const text = JSON.stringify({
@@ -69,7 +69,7 @@ test('F04 native adapter uses unsaved editor content and produces editable canon
   }
 });
 
-test('F04 adapter denies protected run before sending HTTP unless host approves', async () => {
+void test('F04 adapter denies protected run before sending HTTP unless host approves', async () => {
   const f = await fixture(true);
   try {
     const text = JSON.stringify({ request: { method: 'GET', url: '{{baseUrl}}/protected' } });
@@ -94,7 +94,7 @@ test('F04 adapter denies protected run before sending HTTP unless host approves'
   }
 });
 
-test('F04 progress/AbortSignal stops loop before the next request', async () => {
+void test('F04 progress/AbortSignal stops loop before the next request', async () => {
   const f = await fixture();
   try {
     const controller = new AbortController();
@@ -125,7 +125,7 @@ test('F04 progress/AbortSignal stops loop before the next request', async () => 
   }
 });
 
-test('F04 invalid, non-HTTP and outside-workspace files never send an HTTP request', async () => {
+void test('F04 invalid, non-HTTP and outside-workspace files never send an HTTP request', async () => {
   const f = await fixture();
   try {
     await assert.rejects(

@@ -247,8 +247,8 @@ export async function fetchHttpRequest(
           signal: controller.signal,
           redirect: 'manual',
         });
-      } catch (error) {
-        const cause = controller.signal.reason;
+      } catch {
+        const cause: unknown = controller.signal.reason;
         const code =
           controller.signal.aborted && cause instanceof HttpExecutionError
             ? cause.code

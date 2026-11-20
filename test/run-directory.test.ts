@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, readdir, symlink } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -24,9 +24,9 @@ function call(id: number, name: string, args: Record<string, unknown>) {
 }
 function response(reply: Record<string, unknown>) {
   const r = reply.result as { content: [{ text: string }]; isError?: boolean };
-  return { isError: r.isError === true, value: JSON.parse(r.content[0].text) as Record<string, any> };
+  return { isError: r.isError === true, value: JSON.parse(r.content[0].text) as Record<string, unknown> };
 }
-test('F01: discover request files only, sorted, skip symlinks and honor recursive flag', async () => {
+void test('F01: discover request files only, sorted, skip symlinks and honor recursive flag', async () => {
   const f = await fixture();
   const outside = await mkdtemp(join(tmpdir(), 'json-http-run-dir-out-'));
   try {
@@ -34,9 +34,9 @@ test('F01: discover request files only, sorted, skip symlinks and honor recursiv
     await writeFile(join(f.folder, 'a.request.json'), '{}');
     await writeFile(join(f.folder, 'notes.json'), '{}');
     await writeFile(join(f.folder, 'nested', 'inside.request.json'), '{}');
-    await symlink(outside, join(f.folder, 'external'));
+    await symlink(outside, join(f.folder, 'external'), process.platform === 'win32' ? 'junction' : 'dir');
     assert.deepEqual(
-      (await discoverRequestFiles(f.folder, f.root)).map((x) => x.split('/').at(-1)),
+      (await discoverRequestFiles(f.folder, f.root)).map((x) => basename(x)),
       ['a.request.json', 'z.request.json'],
     );
     assert.equal((await discoverRequestFiles(f.folder, f.root, true)).length, 3);
@@ -51,7 +51,7 @@ test('F01: discover request files only, sorted, skip symlinks and honor recursiv
     await rm(outside, { recursive: true, force: true });
   }
 });
-test('F01: executeDirectory aggregates independent canonical results in filename order and stops on abort', async () => {
+void test('F01: executeDirectory aggregates independent canonical results in filename order and stops on abort', async () => {
   const f = await fixture();
   let sent = 0;
   const server = createServer((req, res) => {
@@ -81,7 +81,7 @@ test('F01: executeDirectory aggregates independent canonical results in filename
     });
     assert.deepEqual(
       full.runs.map((x) => x.file),
-      ['requests/a.request.json', 'requests/b.request.json', 'requests/c.request.json'],
+      ['a.request.json', 'b.request.json', 'c.request.json'].map((name) => join('requests', name)),
     );
     assert.equal(full.summary.total, 3);
     assert.equal(full.summary.executed, 3);
@@ -106,7 +106,7 @@ test('F01: executeDirectory aggregates independent canonical results in filename
     await f.close();
   }
 });
-test('F01: CLI run-dir emits one JSON object, keeps diagnostics on stderr, supports --recursive', async () => {
+void test('F01: CLI run-dir emits one JSON object, keeps diagnostics on stderr, supports --recursive', async () => {
   const f = await fixture();
   const server = createServer((_req, res) => res.end('ok'));
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -140,7 +140,7 @@ test('F01: CLI run-dir emits one JSON object, keeps diagnostics on stderr, suppo
     await f.close();
   }
 });
-test('F03/F08: MCP request_run_dir and import_apply require distinct host authorizations', async () => {
+void test('F03/F08: MCP request_run_dir and import_apply require distinct host authorizations', async () => {
   const f = await fixture();
   const source = 'curl -X GET https://public.example.com/v1/customers';
   try {
@@ -180,7 +180,7 @@ test('F03/F08: MCP request_run_dir and import_apply require distinct host author
       (await allowed.process(call(6, 'request_run_dir', { directory: 'requests/nested' })))!,
     );
     assert.equal(empty.isError, false);
-    assert.equal(empty.value.summary.total, 0);
+    assert.equal((empty.value.summary as { total: number }).total, 0);
   } finally {
     await f.close();
   }

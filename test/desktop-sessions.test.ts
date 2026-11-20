@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
@@ -43,7 +43,7 @@ const makeBridge = (): DesktopEngineBridge & {
   };
   return bridge;
 };
-test('F06 restores only open request and redacted response tabs, without re-running HTTP', async () => {
+void test('F06 restores only open request and redacted response tabs, without re-running HTTP', async () => {
   const bridge = makeBridge();
   const store = makeStore();
   const ui = new DesktopTabSessions(bridge, store);
@@ -72,7 +72,7 @@ test('F06 restores only open request and redacted response tabs, without re-runn
   assert.equal(again.openTabs[0]?.kind, 'request');
   assert.equal(bridge.runs, 1);
 });
-test('F06 can save user-edited Response JSON unchanged (no sensitivity validation)', async () => {
+void test('F06 can save user-edited Response JSON unchanged (no sensitivity validation)', async () => {
   const b = makeBridge();
   const tabs = new DesktopTabSessions(b, makeStore());
   const request = await tabs.openRequest('/workspace/get.request.json');
@@ -84,7 +84,7 @@ test('F06 can save user-edited Response JSON unchanged (no sensitivity validatio
   ]);
   assert.equal(tabs.openTabs.find((x) => x.id === response)?.dirty, false);
 });
-test('F06 rejects invalid snapshots, closed tabs never reappear and no stale write races', async () => {
+void test('F06 rejects invalid snapshots, closed tabs never reappear and no stale write races', async () => {
   const store = makeStore();
   const b = makeBridge();
   const ui = new DesktopTabSessions(b, store);
@@ -101,7 +101,7 @@ test('F06 rejects invalid snapshots, closed tabs never reappear and no stale wri
   };
   await assert.rejects(new DesktopTabSessions(b, broken).restore(), DesktopSessionError);
 });
-test('F06 Stop aborts an active bridge request and does not create Response tab', async () => {
+void test('F06 Stop aborts an active bridge request and does not create Response tab', async () => {
   const b = makeBridge();
   b.runRequest = async (_path, _content, signal) =>
     new Promise((_resolve, reject) => {
@@ -118,7 +118,7 @@ test('F06 Stop aborts an active bridge request and does not create Response tab'
   );
   assert.equal(sessions.openTabs[0]?.running, false);
 });
-test('F06 Node bridge runs the shared HTTP SDK and never serializes real Authorization headers', async () => {
+void test('F06 Node bridge runs the shared HTTP SDK and never serializes real Authorization headers', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'json-http-desktop-'));
   const server = createServer((_req, res) => {
     res.setHeader('Content-Type', 'application/json');
@@ -154,13 +154,13 @@ test('F06 Node bridge runs the shared HTTP SDK and never serializes real Authori
     await rm(folder, { recursive: true, force: true });
   }
 });
-test('F06 Node bridge disallows filesystem escape via request and write parent symlink', async () => {
+void test('F06 Node bridge disallows filesystem escape via request and write parent symlink', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'json-http-desktop-safe-'));
   const outside = await mkdtemp(join(tmpdir(), 'json-http-desktop-outside-'));
   try {
     const bridge = await createNodeDesktopBridge({ root: folder });
     await assert.rejects(bridge.readRequest(join(outside, 'other.request.json')), /OUTSIDE_ROOT/);
-    await symlink(outside, join(folder, 'escape'));
+    await symlink(outside, join(folder, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
     await assert.rejects(bridge.saveAs(join(folder, 'escape', 'unexpected.json'), 'oops'), /OUTSIDE_ROOT/);
   } finally {
     await rm(folder, { recursive: true, force: true });
@@ -168,7 +168,7 @@ test('F06 Node bridge disallows filesystem escape via request and write parent s
   }
 });
 
-test('F06 Node app-data session store persists only metadata and masked canonical response', async () => {
+void test('F06 Node app-data session store persists only metadata and masked canonical response', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'json-http-desktop-store-'));
   try {
     const { NodeDesktopSessionStore } = await import('../apps/desktop/src/node-session-store.js');
@@ -183,7 +183,9 @@ test('F06 Node app-data session store persists only metadata and masked canonica
     assert.match(stored, /REDACTED/);
     const disk = (await (await import('node:fs/promises')).stat(join(folder, 'session-workspace-1.json')))
       .mode;
-    assert.equal(disk & 0o077, 0);
+    // Windows uses ACLs rather than POSIX mode 0600. The store still checks
+    // permissions at creation; Linux/macOS can assert the POSIX mask.
+    if (process.platform !== 'win32') assert.equal(disk & 0o077, 0);
     await ui.close(response);
     const restored = new DesktopTabSessions(bridge, new NodeDesktopSessionStore(folder, 'workspace-1'));
     await restored.restore();

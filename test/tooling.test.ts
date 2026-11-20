@@ -9,7 +9,7 @@ const readText = (name: string): Promise<string> => readFile(resolve(process.cwd
 const readJson = async (name: string): Promise<Record<string, unknown>> =>
   JSON.parse(await readText(name)) as Record<string, unknown>;
 
-test('T11: mandatory quality commands and dependencies are declared', async () => {
+void test('T11: mandatory quality commands and dependencies are declared', async () => {
   const manifest = await readJson('package.json');
   const scripts = manifest.scripts as Record<string, string>;
   const deps = manifest.devDependencies as Record<string, string>;
@@ -29,7 +29,7 @@ test('T11: mandatory quality commands and dependencies are declared', async () =
   }
 });
 
-test('T11: TypeScript strict baseline is shared with the root project', async () => {
+void test('T11: TypeScript strict baseline is shared with the root project', async () => {
   const base = await readJson('tsconfig.base.json');
   const project = await readJson('tsconfig.json');
   const options = base.compilerOptions as Record<string, unknown>;
@@ -45,7 +45,7 @@ test('T11: TypeScript strict baseline is shared with the root project', async ()
   assert.equal(project.extends, './tsconfig.base.json');
 });
 
-test('T11: flat ESLint, Prettier and EditorConfig are configured', async () => {
+void test('T11: flat ESLint, Prettier and EditorConfig are configured', async () => {
   const eslint = await readText('eslint.config.mjs');
   const prettier = await readText('prettier.config.mjs');
   const editorconfig = await readText('.editorconfig');
@@ -58,7 +58,7 @@ test('T11: flat ESLint, Prettier and EditorConfig are configured', async () => {
   assert.match(editorconfig, /insert_final_newline = true/);
 });
 
-test('T11: toolchain JavaScript configs are syntactically valid without installing plugins', () => {
+void test('T11: toolchain JavaScript configs are syntactically valid without installing plugins', () => {
   for (const file of ['eslint.config.mjs', 'prettier.config.mjs']) {
     const result = spawnSync(process.execPath, ['--check', file], {
       cwd: process.cwd(),

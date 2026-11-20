@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Reproducible, platform-aware desktop workflow. No shell-evaluated user inputs. */
-import { spawnSync, execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -11,7 +11,7 @@ import {
   rmSync,
   chmodSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -22,17 +22,46 @@ const runtimeFolder = join(native, 'resources', 'runtime');
 const runtimeFile = join(runtimeFolder, process.platform === 'win32' ? 'node.exe' : 'node');
 const supportedOS = ['win32', 'darwin', 'linux'];
 
+// Windows installs npm as npm.cmd/npm.ps1, not a standalone executable.
+// spawnSync('npm', ..., {shell:false}) cannot resolve those shims. Prefer
+// invoking npm-cli.js through the same Node runtime on every OS.
+function spawnTool(bin, args, options = {}) {
+  if (bin !== 'npm') return spawnSync(bin, args, options);
+  const candidates = [
+    process.env.npm_execpath,
+    join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    join(dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    ...(process.platform === 'win32'
+      ? [
+          join(process.env.APPDATA ?? '', 'npm', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+          ...(process.env.Path ?? process.env.PATH ?? '')
+            .split(delimiter)
+            .filter(Boolean)
+            .map((dir) => join(dir, 'node_modules', 'npm', 'bin', 'npm-cli.js')),
+        ]
+      : []),
+  ];
+  const cli = candidates.find((path) => path && existsSync(path));
+  if (cli) return spawnSync(process.execPath, [cli, ...args], options);
+  // Fallback when the npm installation is not next to the Node binary and
+  // npm_execpath is unavailable. This branch is only for fixed, internal args.
+  return spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+    ...options,
+    shell: process.platform === 'win32',
+  });
+}
+
 export function invoke(bin, args, { cwd = root, dryRun = false } = {}) {
   const shown = [bin, ...args].map((x) => JSON.stringify(x)).join(' ');
   process.stdout.write(`${dryRun ? '[DRY RUN] ' : '> '}${shown}\n`);
   if (dryRun) return;
-  const r = spawnSync(bin, args, { cwd, stdio: 'inherit', shell: false, env: process.env });
+  const r = spawnTool(bin, args, { cwd, stdio: 'inherit', shell: false, env: process.env });
   if (r.error) throw new Error(`Unable to launch ${bin}: ${r.error.message}`);
   if (r.status !== 0) throw new Error(`${bin} exited with status ${r.status ?? 'unknown'}`);
 }
 
 function probe(bin, args = []) {
-  const res = spawnSync(bin, args, { encoding: 'utf8', timeout: 5000, windowsHide: true, shell: false });
+  const res = spawnTool(bin, args, { encoding: 'utf8', timeout: 5000, windowsHide: true, shell: false });
   return res.error || res.status !== 0 ? null : String(res.stdout || res.stderr || '').trim();
 }
 function major(version) {
@@ -42,13 +71,13 @@ function major(version) {
 function packageManifest(cwd) {
   return JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
 }
-function missingPackages(cwd) {
+function missingPackages(cwd, { verifyTree = true } = {}) {
   const pkg = packageManifest(cwd);
   const missing = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).filter(
     (name) => !existsSync(join(cwd, 'node_modules', ...name.split('/'), 'package.json')),
   );
-  if (missing.length) return missing;
-  const verified = spawnSync('npm', ['ls', '--depth=0', '--json'], {
+  if (missing.length || !verifyTree) return missing;
+  const verified = spawnTool('npm', ['ls', '--depth=0', '--json'], {
     cwd,
     encoding: 'utf8',
     timeout: 10000,
@@ -157,10 +186,10 @@ function showDoctor(info, { json = false } = {}) {
     'System prerequisite setup: scripts/bootstrap-desktop.sh or scripts/bootstrap-desktop.ps1.\n',
   );
 }
-function verifyBasics({ nativeRequired = true } = {}) {
+function verifyBasics({ nativeRequired = true, npmRequired = true } = {}) {
   if (!supportedOS.includes(process.platform)) throw new Error(`Unsupported desktop OS: ${process.platform}`);
   if (major(process.version) < 22) throw new Error('Node >=22 required. Use the platform bootstrap script.');
-  if (!probe('npm', ['--version'])) throw new Error('npm executable not available');
+  if (npmRequired && !probe('npm', ['--version'])) throw new Error('npm executable not available');
   if (nativeRequired) {
     if (!probe('cargo', ['--version']) || !probe('rustc', ['--version']))
       throw new Error('Rust/Cargo missing. Use bootstrap scripts with --install-system / -InstallSystem.');
@@ -174,7 +203,8 @@ function installPackages({ dryRun = false, offline = false } = {}) {
     ['ui', ui],
     ['tauri', desktop],
   ]) {
-    const missing = missingPackages(dir);
+    // A dry-run inventories files only; it must not launch npm, even for npm ls.
+    const missing = missingPackages(dir, { verifyTree: !dryRun });
     if (!missing.length) {
       process.stdout.write(`[skip] ${name}: dependencies already installed\n`);
       continue;
@@ -187,7 +217,7 @@ function installPackages({ dryRun = false, offline = false } = {}) {
   }
 }
 export function stageRuntime({ dryRun = false } = {}) {
-  verifyBasics({ nativeRequired: false });
+  verifyBasics({ nativeRequired: false, npmRequired: false });
   if (!existsSync(process.execPath)) throw new Error('Node executable could not be resolved');
   if (process.platform === 'win32' && !process.execPath.toLowerCase().endsWith('.exe'))
     throw new Error('Unsupported Windows Node executable');
@@ -258,7 +288,7 @@ export function main(argv = process.argv.slice(2)) {
   }
   if (rest.includes('--json')) throw new Error('--json is only supported by doctor');
   if (command === 'setup') {
-    verifyBasics({ nativeRequired: false });
+    verifyBasics({ nativeRequired: false, npmRequired: !dryRun });
     installPackages({ dryRun, offline });
     process.stdout.write(
       'JavaScript dependencies checked. Native prerequisites must also pass desktop:doctor.\n',
@@ -270,7 +300,7 @@ export function main(argv = process.argv.slice(2)) {
     return 0;
   }
   if (command === 'dev' || command === 'build') {
-    verifyBasics({ nativeRequired: !dryRun });
+    verifyBasics({ nativeRequired: !dryRun, npmRequired: !dryRun });
     installPackages({ dryRun, offline });
     invoke('npm', ['run', 'build'], { cwd: root, dryRun });
     if (command === 'dev') {

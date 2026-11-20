@@ -40,7 +40,8 @@ export const PLACEHOLDER = /\{\{\s*([A-Za-z_$][\w.$-]*)\s*\}\}/g;
 const EXACT = /^\{\{\s*([A-Za-z_$][\w.$-]*)\s*\}\}$/;
 const KEY = /^[A-Za-z_$][\w.$-]*$/;
 const UNSAFE = new Set(['__proto__', 'prototype', 'constructor']);
-const scalar = (value: JsonValue): boolean => value === null || typeof value !== 'object';
+const scalar = (value: JsonValue): value is string | number | boolean | null =>
+  value === null || typeof value !== 'object';
 const jsonType = (value: JsonValue): string =>
   value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
 
